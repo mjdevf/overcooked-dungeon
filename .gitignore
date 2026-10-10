@@ -1,0 +1,13 @@
+# Godot 4+ generated files (safe to exclude; editor re-imports on open)
+.godot/
+
+# OS junk
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Editor / tooling
+.vscode/
+.idea/
+*.tmp
+*.log

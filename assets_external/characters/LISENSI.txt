@@ -1,0 +1,11 @@
+KARAKTER ANIMASI (CC0)
+=======================
+Sumber: Quaternius "Ultimate Animated Character Pack" (CC0 1.0, bebas komersil).
+consumen: Chef_Male.fbx + Chef_Female.fbx (di folder ini).
+Arsip lengkap: ../quaternius_ultimate_animated_CC0.zip (didownload 2026-10-10
+dari OpenGameArt mirror, Author: quaternius, License: CC0).
+
+Dipakai game:
+- Player = Chef_Male (jalan/idle; kerja = chop anim kalau ada, fallback bob).
+- Bot    = Chef_Male (tint topi? bedakan via celemek/prop).
+- NPC    = Chef_Female (variasi tunik sudah ada) / Casual.

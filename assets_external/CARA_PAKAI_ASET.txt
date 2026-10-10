@@ -1,0 +1,28 @@
+CARA PAKAI ASET LUAR (CC0, boleh komersil)
+============================================
+Game sudah wiring otomatis, tidak perlu drag-drop — file di bawah dipakai
+langsung oleh kode. Kalau file dihapus, game fallback ke prosedural.
+
+1. KENNEY FOOD KIT (CC0) — assets_external\food-kit\Models\GLB format\
+   Dipakai: bahan di tangan, talenan + pisau, panci, tumpukan piring,
+   miniatur isi piring, hidangan jadi (salad.glb, pan-stew.glb).
+
+2. KENNEY FURNITURE KIT (CC0) — assets_external\furniture-kit\Models\GLB format\
+   Dipakai: chair.glb = kursi ruang makan (skala 2.2, model aslinya mini).
+   Counter/kompor/sink sekarang full prosedural (model kit skalanya rancu).
+
+3. KENNEY MODULAR DUNGEON KIT (CC0) — cadangan, belum dipakai di map prototipe.
+
+4. KENNEY INTERFACE SOUNDS (CC0) — assets_external\interface-sounds\Audio\
+   Dipakai otomatis oleh scripts/audio_manager.gd (fallback nada prosedural).
+
+5. QUATERNIUS ULTIMATE ANIMATED CHARACTER PACK (CC0) — assets_external\characters\
+   Chef_Male.fbx = player + bot. Chef_Female.fbx = NPC pelanggan.
+   Animasi dipakai: Idle, Walk, Walk_Carry (bawa barang), Punch (mencincang),
+   SitDown (sekali pas duduk). Lihat LISENSI.txt di folder characters.
+   Arsip lengkap: quaternius_ultimate_animated_CC0.zip.
+
+CATATAN IMPORT:
+- Pertama buka di Windows: import ratusan file (2-5 menit). Normal, sekali saja.
+- Mau ringan: hapus folder FBX/OBJ/DAE/STL & file .zip (sisakan "GLB format"
+  dan characters/*.fbx). Jangan hapus file yang disebut di atas.
