@@ -642,7 +642,7 @@ func set_highlight(on: bool) -> void:
 # Dipanggil tiap frame saat pemain menahan E di cutting/sink.
 func hold_work(delta: float) -> bool:
 	if station_type == "chop":
-		if stored and not stored.is_plate and not stored.chopped:
+		if stored and not stored.is_plate and not stored.chopped and LevelData.needs_chop(stored.ingredient):
 			progress += delta
 			working = true
 			_update_bar(progress / progress_needed, Color(0.35, 0.85, 0.35))

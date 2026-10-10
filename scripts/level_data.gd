@@ -70,6 +70,10 @@ static func needs_no_prep(ing: String) -> bool:
 	var d: Dictionary = INGREDIENTS.get(ing, {})
 	return not bool(d.get("need_chop", true)) and not bool(d.get("need_cook", true))
 
+# Bahan yg wajib dicincang dulu. Tak dikenal = wajib (aman).
+static func needs_chop(ing: String) -> bool:
+	return bool(INGREDIENTS.get(ing, {}).get("need_chop", false))
+
 # Layout: satu map prototipe v2 (ProtoConfig) untuk semua level, beda pace/resep.
 # patience = waktu order sebelum hangus. spawn_base = interval dasar spawn NPC (detik).
 const LEVELS := [

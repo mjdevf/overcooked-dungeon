@@ -633,7 +633,7 @@ func nearest_station(observer: Vector3, direction: Vector3) -> Station:
 # Station chop mentah dalam radius (buat bantuan bot).
 func chop_station_near(pos: Vector3, radius: float) -> Station:
 	for st in stations:
-		if st.station_type == "chop" and st.stored and not st.stored.is_plate and not st.stored.chopped:
+		if st.station_type == "chop" and st.stored and not st.stored.is_plate and not st.stored.chopped and LevelData.needs_chop(st.stored.ingredient):
 			if pos.distance_to(st.global_position) < radius:
 				return st
 	return null

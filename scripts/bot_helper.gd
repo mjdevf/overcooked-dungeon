@@ -729,7 +729,7 @@ func _wait_at_boards(delta: float) -> void:
 	_goto(nb.global_position, delta, 1.6)
 	if work_cd <= 0.0:
 		var nst: Station = game.chop_station_near(global_position, 1.8)
-		if nst and nst.stored and not nst.stored.is_plate and not nst.stored.chopped:
+		if nst and nst.stored and not nst.stored.is_plate and not nst.stored.chopped and LevelData.needs_chop(nst.stored.ingredient):
 			nst.hold_work(0.5)
 			work_cd = 0.2
 			bot_working = true
