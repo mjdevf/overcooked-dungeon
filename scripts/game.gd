@@ -1572,8 +1572,13 @@ func _update_flying(delta: float) -> void:
 		var k: float = clampf(float(fl["t"]) / float(fl["dur"]), 0.0, 1.0)
 		(n as Node3D).global_position = (fl["from"] as Vector3).lerp(fl["to"], k) + Vector3(0, sin(k * PI) * 0.8, 0)
 		if k >= 1.0:
-			done.append(fl)
 			var npc = fl["npc"]
+			# NPC belum duduk: tahan piring di meja (maks 12 dtk), jangan makan di jalan
+			if npc and is_instance_valid(npc) and int(npc.state) != NPCCustomer.State.WAIT_FOOD and float(fl.get("hold", 0.0)) < 12.0:
+				fl["hold"] = float(fl.get("hold", 0.0)) + delta
+				fl["t"] = float(fl["dur"])
+				continue
+			done.append(fl)
 			if npc and is_instance_valid(npc):
 				npc.start_eating()
 				eating.append({"npc": npc, "t": randf_range(5.0, 8.0), "plate": n})
