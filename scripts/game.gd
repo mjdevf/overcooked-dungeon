@@ -1011,6 +1011,9 @@ func board_relevant(order: Dictionary, contents: Array, f: FoodItem) -> bool:
 		return false
 	if need_useful(order, contents, snap_of(f)):
 		return true
+	# bahan sudah cincang, belum matang, order masih butuh versi matangnya
+	if cook_pending(order, contents, f):
+		return true
 	if not f.chopped:
 		for n in order.get("recipe", {}).get("needs", []):
 			var met := false
@@ -1021,6 +1024,20 @@ func board_relevant(order: Dictionary, contents: Array, f: FoodItem) -> bool:
 			if not met and str(n.get("item", "")) == f.ingredient:
 				return true
 	return false
+
+# bahan sudah cincang, belum matang, dan order masih butuh versi matangnya
+func cook_pending(order: Dictionary, contents: Array, f: FoodItem) -> bool:
+	if f == null or f.is_plate or f.ingredient == "apar":
+		return false
+	if not f.chopped or f.cooked or f.burnt:
+		return false
+	return need_cook_for(order, contents, str(f.ingredient))
+
+func cook_ready_board_for(order: Dictionary, contents: Array, ing: String) -> Station:
+	for st in stations:
+		if st.station_type == "chop" and st.stored and str(st.stored.ingredient) == ing and cook_pending(order, contents, st.stored):
+			return st
+	return null
 
 # Titik siaga bot saat order kosong: lantai bebas tengah dapur (7,4),
 # dekat area kerja tapi tak menghalangi spawn pemain (5,4).
@@ -1101,7 +1118,7 @@ func assembly_target(bot) -> Dictionary:
 		if bool(need.get("cook", false)):
 			var cing := str(need.get("item", ""))
 			if find_crate(cing) != null and free_stove() != null:
-				if find_free_station("chop") != null or raw_board_for(cing) != null:
+				if find_free_station("chop") != null or raw_board_for(cing) != null or cook_ready_board_for(o, plate.stored.plate_contents, cing) != null:
 					return {"order": o, "plate": plate, "need": need, "via": "cook"}
 			continue
 		if not bool(need.get("cook", false)):

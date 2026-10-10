@@ -418,7 +418,8 @@ func _run_plan(delta: float) -> bool:
 			return true
 		if ws.stored.chopped:
 			# yg sudah jadi tapi tak berguna (sisa orang) -> tinggalkan di meja.
-			if game.need_useful(order, plate.stored.plate_contents, game.snap_of(ws.stored)):
+			# Kecuali cincang-mentah yg ordernya butuh versi matang -> bawa ke kompor.
+			if game.need_useful(order, plate.stored.plate_contents, game.snap_of(ws.stored)) or game.cook_pending(order, plate.stored.plate_contents, ws.stored):
 				var got: FoodItem = ws.take_stored()
 				if got:
 					_attach(got)
@@ -556,6 +557,15 @@ func _run_plan(delta: float) -> bool:
 				var gb2: FoodItem = bs.take_stored()
 				if gb2:
 					_attach(gb2)
+			return true
+		# cincang-mentah yg butuh dimasak: ambil dari talenan -> B2 bawa ke kompor
+		var cb: Station = game.cook_ready_board_for(order, plate.stored.plate_contents, iname)
+		if cb:
+			set_job("Ambil " + iname)
+			if _goto(cb.global_position, delta, 1.6):
+				var gcb: FoodItem = cb.take_stored()
+				if gcb:
+					_attach(gcb)
 			return true
 		var crate: Station = game.find_crate(iname)
 		if crate == null:
