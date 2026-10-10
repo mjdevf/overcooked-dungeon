@@ -325,6 +325,7 @@ func _auto_brain(delta: float) -> void:
 			var o: Dictionary = tgt["order"]
 			if game.claim_order(self, int(o.get("uid", 0))):
 				plan = {"uid": int(o.get("uid", 0)), "need": tgt["need"]}
+				game.reserve_plate(int(o.get("uid", 0)), tgt["plate"])
 				set_job("Masak " + _plan_label())
 	# 4. eksekusi langkah plan
 	if not plan.is_empty():
@@ -409,6 +410,8 @@ func _run_plan(delta: float) -> bool:
 	if plate == null or plate.stored == null or not plate.stored.is_plate:
 		_clear_plan()
 		return false
+	# reserve mengikuti piring yg dipakai (biar bot lain tak rebut)
+	game.reserve_plate(uid, plate)
 	var missing: Dictionary = game.plan_missing(order, plate.stored.plate_contents)
 	if missing.is_empty():
 		_clear_plan()

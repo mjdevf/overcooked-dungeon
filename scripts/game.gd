@@ -874,7 +874,7 @@ func find_complete_plate_station() -> Station:
 
 # ---------- sinkronisasi order <-> bot (klaim + assembly) ----------
 
-var claims := {}  # uid(int) -> {"by": BotHelper}
+var claims := {}  # uid(int) -> {"by": BotHelper, "plate": Station/nil}
 
 func claim_order(bot, uid: int) -> bool:
 	_prune_claims()
@@ -882,7 +882,8 @@ func claim_order(bot, uid: int) -> bool:
 		var holder = claims[uid].get("by", null)
 		if holder != null and holder != bot and is_instance_valid(holder):
 			return false
-	claims[uid] = {"by": bot}
+	# klaim ulang bot yg sama: reserve piring dipertahankan
+	claims[uid] = {"by": bot, "plate": claims.get(uid, {}).get("plate", null)}
 	return true
 
 func release_claim(bot) -> void:
@@ -893,6 +894,18 @@ func release_claim(bot) -> void:
 func release_uid(uid: int) -> void:
 	claims.erase(uid)
 
+# Tandai piring plating untuk uid (lepas otomatis bersama klaim).
+func reserve_plate(uid: int, st: Station) -> void:
+	if claims.has(uid):
+		claims[uid]["plate"] = st
+
+# Piring ini direserve order lain? (reserve sendiri = false)
+func _plate_reserved_by_other(st: Station, uid: int) -> bool:
+	for k in claims.keys():
+		if int(k) != uid and claims[k].get("plate", null) == st:
+			return true
+	return false
+
 func _prune_claims() -> void:
 	for k in claims.keys():
 		var holder = claims[k].get("by", null)
@@ -900,6 +913,10 @@ func _prune_claims() -> void:
 			claims.erase(k)
 		elif orders.get_order(int(k)).is_empty():
 			claims.erase(k)
+		else:
+			var rp = claims[k].get("plate", null)
+			if rp != null and not is_instance_valid(rp):
+				claims[k]["plate"] = null
 
 func order_assignee(uid: int) -> String:
 	_prune_claims()
@@ -929,35 +946,52 @@ func plan_missing(order: Dictionary, contents: Array) -> Dictionary:
 			return n
 	return {}
 
-# plate di meja plating yg cocok untuk order: kosong bersih, atau parsial-valid.
+# plate di meja plating yg cocok untuk order: reserve sendiri dulu, lalu
+# parsial-valid, lalu kosong bersih. Piring reserve order lain dilewat.
 func plate_for_order(order: Dictionary) -> Station:
+	var uid := int(order.get("uid", 0))
+	# 0. piring reserve milik uid ini (kalau masih layak)
+	var own = claims.get(uid, {}).get("plate", null)
+	if own != null and is_instance_valid(own) and own.station_type == "plating" and own.stored != null:
+		var p0: FoodItem = own.stored
+		if p0.is_plate and not p0.dirty:
+			if p0.plate_contents.is_empty():
+				return own
+			if _plate_partial_ok(order, p0) and not plan_missing(order, p0.plate_contents).is_empty():
+				return own
 	# 1. parsial yg semua isinya valid untuk order ini + masih ada yg kurang
 	for st in stations:
 		if st.station_type != "plating" or st.stored == null:
 			continue
+		if _plate_reserved_by_other(st, uid):
+			continue
 		var p: FoodItem = st.stored
 		if not p.is_plate or p.dirty or p.plate_contents.is_empty():
 			continue
-		var valid := true
-		for c in p.plate_contents:
-			var hit := false
-			for n in order.get("recipe", {}).get("needs", []):
-				if LevelData.need_met(n, c):
-					hit = true
-					break
-			if not hit:
-				valid = false
-				break
-		if valid and not plan_missing(order, p.plate_contents).is_empty():
+		if _plate_partial_ok(order, p) and not plan_missing(order, p.plate_contents).is_empty():
 			return st
-	# 2. piring kosong bersih
+	# 2. piring kosong bersih (reserve lain dilewat)
 	for st in stations:
 		if st.station_type != "plating" or st.stored == null:
+			continue
+		if _plate_reserved_by_other(st, uid):
 			continue
 		var p2: FoodItem = st.stored
 		if p2.is_plate and not p2.dirty and p2.plate_contents.is_empty():
 			return st
 	return null
+
+# Semua isi piring valid untuk salah satu need order ini?
+func _plate_partial_ok(order: Dictionary, p: FoodItem) -> bool:
+	for c in p.plate_contents:
+		var hit := false
+		for n in order.get("recipe", {}).get("needs", []):
+			if LevelData.need_met(n, c):
+				hit = true
+				break
+		if not hit:
+			return false
+	return true
 
 # Talenan berisi bahan MENTAH dgn ingredient cocok (sisa pemain/bot lain).
 # Buat adopsi: bot teruskan mencincang sisa ini, bukan ambil baru dari crate.
