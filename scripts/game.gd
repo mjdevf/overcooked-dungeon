@@ -139,6 +139,8 @@ func clear_level() -> void:
 	seats.clear()
 	flying.clear()
 	eating.clear()
+	target_ring = null
+	popups.clear()
 	if player and is_instance_valid(player):
 		player.queue_free()
 	player = null
@@ -452,6 +454,8 @@ func start_level(idx: int) -> void:
 	orders.active_orders.clear()
 	claims.clear()
 	junk_timer.clear()
+	fire_sec = 0.0
+	orders.stop()
 	orders.emit_signal("orders_changed")
 	# kamera snap ke pemain (follow mulai dari sini)
 	if cam and player:
@@ -1501,7 +1505,7 @@ func _clamp_focus(p: Vector3) -> Vector3:
 	return Vector3(clampf(p.x, -3.0, 3.0), 0.0, clampf(p.z, -3.0, 3.0))
 
 func _update_ring(st) -> void:
-	if target_ring == null:
+	if target_ring == null or not is_instance_valid(target_ring):
 		target_ring = MeshInstance3D.new()
 		var rm := CylinderMesh.new()
 		rm.top_radius = 0.55
