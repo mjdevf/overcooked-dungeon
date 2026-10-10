@@ -827,7 +827,8 @@ func _serve(plate: FoodItem, at_pos: Vector3, from_pos: Vector3) -> Dictionary:
 		hud.flash(str(res.get("msg", "OK")))
 		audio.success()
 		spawn_popup("+" + str(res.get("reward", 0)), at_pos, Color(1.0, 0.85, 0.3))
-		if float(res.get("time_left", 0.0)) > 45.0:
+		# tip cepat relatif terhadap patience order (bukan absolut 45 dtk)
+		if float(res.get("time_left", 0.0)) > float(res.get("time_max", 90.0)) * 0.5:
 			orders.score += 15
 			orders.emit_signal("score_changed", orders.score)
 			spawn_popup("+15 tip", at_pos + Vector3(0, 0.4, 0), Color(0.5, 1.0, 0.5))

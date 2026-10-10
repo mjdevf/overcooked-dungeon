@@ -100,15 +100,17 @@ func deliver(plate: FoodItem) -> Dictionary:
 		return {"ok": false, "msg": "Tidak ada order cocok!", "reward": 0}
 	var r: Dictionary = active_orders[got]["recipe"]
 	var tleft := float(active_orders[got]["time_left"])
+	var tmax := float(active_orders[got].get("time_max", 90.0))
 	var done_order: Dictionary = active_orders[got]
 	active_orders.remove_at(got)
 	var reward := int(r.get("reward", 100))
-	if tleft > 60.0:
+	# bonus cepat relatif terhadap patience order (bukan absolut 60 dtk)
+	if tleft > tmax * 0.66:
 		reward += 30
 	score += reward
 	emit_signal("score_changed", score)
 	emit_signal("orders_changed")
-	return {"ok": true, "msg": "Order OK! +" + str(reward), "reward": reward, "order": done_order, "time_left": tleft}
+	return {"ok": true, "msg": "Order OK! +" + str(reward), "reward": reward, "order": done_order, "time_left": tleft, "time_max": tmax}
 
 func _match(recipe: Dictionary, contents: Array) -> bool:
 	return LevelData.match_recipe(recipe, contents)
