@@ -81,19 +81,22 @@ func _next_recipe() -> void:
 	phase = 1
 
 func _bench() -> void:
-	# 7g: ukur cost pathfinding sebelum mutuskan cache grid
-	var t0 := Time.get_ticks_msec()
+	# 7g: ukur hitch pathfinding (maks 1 panggilan) sebelum mutuskan cache grid
+	var worst := 0
 	var acc := 0.0
 	for i in range(200):
 		var a := Vector3(-4.5 + float(i % 9), 0, -4.5 + float(i % 7))
 		var b2 := Vector3(4.5 - float(i % 5), 0, 4.5 - float(i % 11))
+		var t0 := Time.get_ticks_msec()
 		acc += (game.astar_path(a, b2) as Array).size()
+		worst = maxi(worst, int(Time.get_ticks_msec()) - int(t0))
+	var t1 := Time.get_ticks_msec()
 	for i in range(5000):
 		if game.astar_blocked(i % 12, (i / 12) % 12):
 			acc += 1.0
-	var ms := int(Time.get_ticks_msec()) - int(t0)
-	print("  BENCH astar 200 path + 5000 blocked = ", ms, "ms (nodes=", acc, ")")
-	check(ms < 50, "bench A* jauh di bawah 50ms (7g tak perlu)")
+	var bms := int(Time.get_ticks_msec()) - int(t1)
+	print("  BENCH astar worst-1-path = ", worst, "ms; 5000 blocked = ", bms, "ms (nodes=", acc, ")")
+	check(worst < 50, "tak ada hitch A* > 50ms (7g tak perlu)")
 
 func _watch_redflags() -> void:
 	if game.bots.is_empty():

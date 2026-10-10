@@ -38,6 +38,7 @@ var cam_offset := Vector3(13, 15, 10.5)
 var cam_focus := Vector3(-2, 0, 0.5)
 
 const BOT_COST := 50
+const BOT_COST_2 := 150   # bot kedua lebih mahal (ukur: 1 bot ≈ pemain veteran)
 const INTERACT_DIST := 2.4
 const FURN := "res://assets_external/furniture-kit/Models/GLB format/"
 const FOOD := "res://assets_external/food-kit/Models/GLB format/"
@@ -1324,11 +1325,13 @@ func recruit_bot() -> void:
 	if bots.size() >= 2:
 		hud.flash("Bot maksimal 2!")
 		return
-	if orders.score < BOT_COST:
-		hud.flash("Butuh %d poin buat rekrut bot! (skor: %d)" % [BOT_COST, orders.score])
+	# harga bertingkat: bot pertama 50, kedua 150
+	var cost := BOT_COST if bots.is_empty() else BOT_COST_2
+	if orders.score < cost:
+		hud.flash("Butuh %d poin buat rekrut bot! (skor: %d)" % [cost, orders.score])
 		audio.fail()
 		return
-	orders.score -= BOT_COST
+	orders.score -= cost
 	var b := BotHelper.new()
 	b.process_mode = Node.PROCESS_MODE_PAUSABLE
 	b.game = self

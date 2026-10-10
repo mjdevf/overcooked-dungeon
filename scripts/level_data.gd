@@ -20,11 +20,11 @@ const RECIPES := [
 		{"item": "selada", "chop": 1, "cook": 0}], "reward": 100},
 	{"id": "roti_lapis", "label": "Roti Lapis", "needs": [
 		{"item": "roti", "chop": 0, "cook": 0},
-		{"item": "tomat", "chop": 1, "cook": 0}], "reward": 130},
+		{"item": "tomat", "chop": 1, "cook": 0}], "reward": 90},
 	{"id": "burger", "label": "Burger Keju", "needs": [
 		{"item": "roti", "chop": 0, "cook": 0},
 		{"item": "keju", "chop": 0, "cook": 0},
-		{"item": "selada", "chop": 1, "cook": 0}], "reward": 170},
+		{"item": "selada", "chop": 1, "cook": 0}], "reward": 120},
 	{"id": "tumis", "label": "Tumis Dungeon", "needs": [
 		{"item": "tomat", "chop": 1, "cook": 1},
 		{"item": "selada", "chop": 1, "cook": 1}], "reward": 180},
@@ -84,7 +84,7 @@ const LEVELS := [
 		"spawn_base": 22.0,
 		"patience": 90.0,
 		"recipes": ["salad"],
-		"star_1": 150, "star_2": 300, "star_3": 450,
+		"star_1": 300, "star_2": 600, "star_3": 900,
 	},
 	{
 		"name": "L2 - Ruang Rame",
@@ -94,7 +94,7 @@ const LEVELS := [
 		"patience": 80.0,
 		"recipes": ["salad", "roti_lapis", "tumis"],
 		"events": [{"at": 60.0, "kind": "rush"}, {"at": 150.0, "kind": "rush"}],
-		"star_1": 300, "star_2": 550, "star_3": 800,
+		"star_1": 350, "star_2": 800, "star_3": 1400,
 	},
 	{
 		"name": "L3 - Rush Hour",
@@ -103,7 +103,7 @@ const LEVELS := [
 		"spawn_base": 14.0,
 		"patience": 70.0,
 		"recipes": ["salad", "roti_lapis", "burger", "tumis"],
-		"events": [{"at": 45.0, "kind": "rush"}, {"at": 120.0, "kind": "rush"}, {"at": 185.0, "kind": "rush"}],
-		"star_1": 400, "star_2": 700, "star_3": 1000,
+		"events": [{"at": 75.0, "kind": "rush"}, {"at": 120.0, "kind": "rush"}, {"at": 185.0, "kind": "rush"}],
+		"star_1": 400, "star_2": 1000, "star_3": 1900,
 	},
 ]

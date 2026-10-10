@@ -16,7 +16,7 @@ OVERCOOKED DUNGEON - cara main (Windows)
    Shift / B    : dash / lari cepat (tahan)
    E / Spasi / A: interaksi ke station yang DIHADAP (ada ring kuning + label kuning).
                   TAHAN untuk mencincang di talenan & mencuci di wastafel.
-   Q / Y        : rekrut bot helper (50 poin, maks 2). Full auto: ambil bahan,
+   Q / Y        : rekrut bot helper (50/150 poin, maks 2). Full auto: ambil bahan,
                   cincang, rakit ke piring sesuai order, antar. Sisa bahan di
                   talenan langsung diteruskan (tidak perlu dibereskan dulu);
                   barang yang bukan bagiannya tidak disentuh. Label di atas
