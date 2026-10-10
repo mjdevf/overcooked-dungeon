@@ -35,6 +35,7 @@ var bubble: Label3D
 var bubble_cd := 0.0
 var color_idx := 0
 var stuck_t := 0.0
+var move_t := 0.0
 var sidestep_t := 0.0
 var sidestep_sign := 1.0
 var sidestep_dir := Vector3.ZERO
@@ -62,6 +63,8 @@ func _ready() -> void:
 	cap.height = 1.0
 	col.shape = cap
 	col.position = Vector3(0, 0.6, 0)
+	collision_layer = 2   # NPC tembus-menembus sesama NPC
+	collision_mask = 1    # tetap tabrak tembok/meja/lantai
 	add_child(col)
 	visual_root = Node3D.new()
 	add_child(visual_root)
@@ -108,6 +111,7 @@ func short_dish() -> String:
 
 func advance_to(qi: int) -> void:
 	queue_idx = qi
+	move_t = 0.0
 	if state == State.QUEUED or state == State.TO_QUEUE:
 		state = State.TO_QUEUE
 		_retarget_queue()
@@ -128,6 +132,7 @@ func start_ordering() -> void:
 func assign_seat(p_seat: Dictionary, p_order: Dictionary) -> void:
 	seat = p_seat
 	order = p_order
+	move_t = 0.0
 	state = State.TO_SEAT
 	state_t = 0.0
 	# A* ke kursi sendiri (sel kursinya boleh dimasuki)
@@ -145,6 +150,7 @@ func start_eating() -> void:
 func pay_and_leave() -> void:
 	state = State.PAY_LEAVE
 	state_t = 0.0
+	move_t = 0.0
 	bubble.text = "Makasih!"
 	bubble.modulate = Color(1.0, 0.85, 0.3)
 	game.free_npc_seat(self)
@@ -162,13 +168,17 @@ func angry() -> void:
 func leave_calm() -> void:
 	state = State.LEAVE_CALM
 	state_t = 0.0
+	move_t = 0.0
 	bubble.text = ""
 	_exit_path()
 
 func _exit_path() -> void:
-	# A* pulang ke pintu (kursi bebas dilewati, sudah berdiri).
+	# Pulang via sel pintu (walkable), baru ke titik entrance di luar grid.
+	# Langsung ke entrance = garis lurus nabrak meja (goal di luar grid).
 	var e: Vector2 = game.npc_entrance()
-	wps = game.astar_path(global_position, Vector3(e.x, 0, e.y))
+	var d := ProtoConfig.door_cell()
+	wps = game.astar_path(global_position, ProtoConfig.wpos(d.x, d.y))
+	wps.append(Vector3(e.x, 0, e.y))
 
 # ---- loop ----
 
@@ -177,6 +187,14 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector3.ZERO
 		return
 	state_t += delta
+	# watchdog: state jalan yg macet > 25 dtk -> buang (antrean tak boleh mati)
+	if state == State.TO_QUEUE or state == State.TO_SEAT or state == State.PAY_LEAVE or state == State.LEAVE_CALM:
+		move_t += delta
+		if move_t > 25.0:
+			game._npc_gone(self)
+			return
+	else:
+		move_t = 0.0
 	bob_t += delta * 9.0
 	match state:
 		State.TO_QUEUE:
