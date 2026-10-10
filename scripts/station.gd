@@ -726,6 +726,10 @@ func interact(carry: FoodItem, burn_enabled: bool) -> Dictionary:
 	if station_type == "stove" and not enabled:
 		res["msg"] = "Kompor mati"
 		return res
+	# APAR bukan bahan: hanya untuk api (di bawah), tolak mentah-mentah di sini
+	if carry != null and carry.ingredient == "apar" and station_type == "stove" and not fire:
+		res["msg"] = "APAR hanya untuk api"
+		return res
 	if station_type == "stove" and fire:
 		# padamkan pakai APAR (place_consumed -> tangan bebas, generic handler)
 		if carry and carry.ingredient == "apar":
@@ -778,6 +782,7 @@ func interact(carry: FoodItem, burn_enabled: bool) -> Dictionary:
 		cooking = false
 		burning = false
 		progress = 0.0
+		neglect_t = 0.0
 		hide_bar()
 		_place_visual()
 		res["msg"] = "Ambil: " + str((res["take"] as FoodItem).describe())
@@ -820,6 +825,7 @@ func interact(carry: FoodItem, burn_enabled: bool) -> Dictionary:
 			progress = 0.0
 			burning = false
 			burn_timer = 0.0
+			neglect_t = 0.0
 			res["msg"] = "Memasak..."
 		else:
 			res["msg"] = "Taruh: " + carry.describe()
