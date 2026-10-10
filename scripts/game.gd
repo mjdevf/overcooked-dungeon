@@ -451,6 +451,7 @@ func start_level(idx: int) -> void:
 	# order & klaim lama jangan bocor ke run baru (countdown 3 dtk sebelum orders mulai)
 	orders.active_orders.clear()
 	claims.clear()
+	junk_timer.clear()
 	orders.emit_signal("orders_changed")
 	# kamera snap ke pemain (follow mulai dari sini)
 	if cam and player:
@@ -1058,6 +1059,75 @@ func burning_stove() -> Station:
 			return st
 	return null
 
+var junk_timer := {}  # Station -> detik sudah dianggap junk
+
+# Makanan ini masih diinginkan order aktif? Mentah = masih bisa diolah.
+func item_wanted(f: FoodItem) -> bool:
+	if f == null or f.burnt:
+		return false
+	for o in orders.active_orders:
+		for n in o.get("recipe", {}).get("needs", []):
+			if str(n.get("item", "")) != str(f.ingredient):
+				continue
+			if LevelData.need_met(n, snap_of(f)):
+				return true
+			if not f.chopped and not f.cooked:
+				return true
+			if f.chopped and not f.cooked and bool(n.get("cook", false)):
+				return true
+	return false
+
+# Piring isi yg tak cocok order mana pun dan tak bisa dipakai lagi.
+func plate_orphan(p: FoodItem) -> bool:
+	if p == null or not p.is_plate or p.dirty or p.plate_contents.is_empty():
+		return false
+	if not matching_order(p.plate_contents).is_empty():
+		return false
+	for o in orders.active_orders:
+		var ok := true
+		for c in p.plate_contents:
+			var hit := false
+			for n in o.get("recipe", {}).get("needs", []):
+				if LevelData.need_met(n, c):
+					hit = true
+					break
+			if not hit:
+				ok = false
+				break
+		if ok:
+			return false
+	return true
+
+# Ambang detik sebelum junk boleh diambil janitor, per tipe.
+func _junk_threshold(st: Station) -> float:
+	match st.station_type:
+		"stove":
+			return 2.0
+		"chop":
+			return 10.0
+		"plating":
+			return 10.0
+	return 1e9
+
+func _is_junk(st: Station) -> bool:
+	if st.stored == null:
+		return false
+	match st.station_type:
+		"stove":
+			return (not st.stored.is_plate) and st.stored.burnt and not st.fire
+		"chop":
+			return (not st.stored.is_plate) and not item_wanted(st.stored)
+		"plating":
+			return plate_orphan(st.stored)
+	return false
+
+# Stasiun junk yg timernya matang duluan (buat janitor bot).
+func junk_station() -> Station:
+	for st in stations:
+		if _is_junk(st) and float(junk_timer.get(st, 0.0)) >= _junk_threshold(st):
+			return st
+	return null
+
 # Kompor berisi makanan gosong (buat dibersihkan bot/pemain).
 func burnt_stove() -> Station:
 	for st in stations:
@@ -1331,6 +1401,12 @@ func _process(delta: float) -> void:
 					orders.emit_signal("score_changed", orders.score)
 		_update_flying(delta)
 		_update_eating(delta)
+		# timer junk: akumulasi selama stasiun junk, reset kalau tidak
+		for s2 in stations:
+			if is_instance_valid(s2) and _is_junk(s2):
+				junk_timer[s2] = float(junk_timer.get(s2, 0.0)) + delta
+			else:
+				junk_timer.erase(s2)
 		hud.set_score(orders.score)
 		hud.set_time(orders.time_left)
 		hud.set_bots(bots.size())

@@ -27,6 +27,8 @@ var target: Vector3 = Vector3.ZERO
 var has_target := false
 var work_cd := 0.0
 var stuck_t := 0.0
+var orphan_t := 0.0
+var dump_now := false
 var anim: CharAnim
 var use_anim := false
 var bot_working := false
@@ -280,6 +282,9 @@ func _auto_brain(delta: float) -> void:
 	# 0b. API KEBAKARAN: prioritas di atas cook-run, tapi tangan makanan tak diganggu.
 	if _handle_fire(delta):
 		return
+	# 0c. bawaan yatim: tangan isi tanpa plan yg bisa dikirim -> buang ke tong.
+	if _handle_orphan(delta):
+		return
 	# 1. lanjutkan plan cook-run yg aktif
 	if not plan.is_empty():
 		if _run_plan(delta):
@@ -294,6 +299,10 @@ func _auto_brain(delta: float) -> void:
 				task = "todeliver"
 			return
 	if task == "todeliver" and carry and carry.is_plate:
+		# order hangus di jalan: jangan _serve (hindari -10), orphan handler yg buang
+		if game.matching_order(carry.plate_contents).is_empty():
+			task = ""
+			return
 		var dst: Station = game.pass_station()
 		if dst == null:
 			_drop_to_chop(delta)
@@ -320,6 +329,10 @@ func _auto_brain(delta: float) -> void:
 	# 4. eksekusi langkah plan
 	if not plan.is_empty():
 		if _run_plan(delta):
+			return
+	# 4b. janitor: tangan kosong tanpa plan -> bersihkan junk stasiun
+	if carry == null and task == "" and plan.is_empty():
+		if _janitor(delta):
 			return
 	# --- ferry bahan mentah ke talenan kosong ---
 	if carry and not carry.is_plate and not carry.chopped:
@@ -718,6 +731,46 @@ func _handle_fire(delta: float) -> bool:
 	set_job("Ambil APAR")
 	if _goto(ast2.global_position, delta, 1.6):
 		_attach(FoodItem.make_apar())
+	return true
+
+# Bawaan yatim: tangan isi, tak ada plan, tak bisa dikirim -> buang ke tong.
+func _handle_orphan(delta: float) -> bool:
+	var orphan: bool = carry != null and is_instance_valid(carry) and plan.is_empty() and carry.ingredient != "apar" and task != "todeliver" and (carry.chopped or carry.cooked or carry.burnt or (carry.is_plate and game.matching_order(carry.plate_contents).is_empty()))
+	if not orphan:
+		orphan_t = 0.0
+		return false
+	orphan_t += delta
+	var grace := 10.0 if (carry.is_plate and not carry.plate_contents.is_empty()) else 1.5
+	if dump_now:
+		grace = 0.0
+	if orphan_t < grace:
+		return false
+	var tr: Station = game.find_trash()
+	if tr == null:
+		_free_carry()
+		orphan_t = 0.0
+		dump_now = false
+		return true
+	set_job("Buang")
+	if _goto(tr.global_position, delta, 1.6):
+		_free_carry()
+		task = ""
+		task_station = null
+		orphan_t = 0.0
+		dump_now = false
+	return true
+
+# Janitor: ambil junk stasiun lalu buang (via dump_now + orphan handler).
+func _janitor(delta: float) -> bool:
+	var js: Station = game.junk_station()
+	if js == null:
+		return false
+	set_job("Bersihkan")
+	if _goto(js.global_position, delta, 1.6):
+		var f: FoodItem = js.take_stored()
+		if f:
+			_attach(f)
+			dump_now = true
 	return true
 
 func _wander_chop(delta: float) -> void:
