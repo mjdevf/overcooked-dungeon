@@ -3,14 +3,19 @@ extends CanvasLayer
 ## UI modern: menu + best score, chips skor/waktu/bot, kartu order, pause, countdown besar.
 
 const ACCENT := Color(1.0, 0.75, 0.30)
-const PANEL := Color(0.10, 0.09, 0.155, 0.94)
-const CREAM := Color(0.97, 0.93, 0.83)
-const CREAM_DIM := Color(0.90, 0.84, 0.71)
+const PANEL := Color(0.23, 0.14, 0.09, 0.92)
+const CREAM := Color(1.0, 0.965, 0.89)
+const CREAM_DIM := Color(0.96, 0.91, 0.80)
 const INK := Color(0.30, 0.20, 0.13)
 const INK_SOFT := Color(0.45, 0.35, 0.27)
 const LEAF := Color(0.20, 0.55, 0.25)
 const BLOOD := Color(0.72, 0.18, 0.13)
 const GOLD := Color(0.85, 0.60, 0.10)
+const FOCUS_BLUE := Color(0.18, 0.44, 0.88)
+var font_title: Font = null
+var font_body: Font = null
+var ui_theme: Theme = null
+var _recruit_key := "[Q]"
 
 var game = null
 var menu_panel: PanelContainer
@@ -21,6 +26,10 @@ var settings_overlay: PanelContainer
 var mute_btn: Button
 var muted := false
 var hud_root: Control
+var score_panel: PanelContainer
+var orders_rail: VBoxContainer
+var bot_side: VBoxContainer
+var bottom_bar: HBoxContainer
 var orders_box: VBoxContainer
 var info_label: Label
 var msg_label: Label
@@ -34,7 +43,6 @@ var star_bar: ProgressBar
 var thr_labels: Array = []
 var _thr: Array = [300, 550, 800]
 var seats_label: Label
-var spawn_label: Label
 var bot_rows: VBoxContainer
 var recruit_btn: Button
 var _last_bot_ms := 0
@@ -60,11 +68,90 @@ var _last_card_ms := 0
 
 func setup(g) -> void:
 	game = g
+	_load_fonts()
+	_make_theme()
 	_build_menu()
 	_build_hud()
 	_build_over()
 	_build_pause()
 	show_menu()
+
+# Font judul (Fredoka) + teks (Nunito), OFL. Jatuh ke default bila gagal impor.
+func _load_fonts() -> void:
+	if ResourceLoader.exists("res://fonts/Fredoka-SemiBold.ttf"):
+		font_title = load("res://fonts/Fredoka-SemiBold.ttf") as Font
+	if ResourceLoader.exists("res://fonts/Nunito-Bold.ttf"):
+		font_body = load("res://fonts/Nunito-Bold.ttf") as Font
+
+# Gaya tanah liat: border 3 px penuh + bawah tebal 7 px (bayangan solid).
+func _clay(bg: Color, border: Color = INK, radius: int = 14) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.corner_radius_top_left = radius
+	s.corner_radius_top_right = radius
+	s.corner_radius_bottom_left = radius
+	s.corner_radius_bottom_right = radius
+	s.border_width_left = 3
+	s.border_width_right = 3
+	s.border_width_top = 3
+	s.border_width_bottom = 7
+	s.border_color = border
+	s.content_margin_left = 12
+	s.content_margin_right = 12
+	s.content_margin_top = 8
+	s.content_margin_bottom = 4
+	return s
+
+# Tema sekali pakai semua layar: font + tombol biasa/utama.
+func _make_theme() -> void:
+	var th := Theme.new()
+	if font_body:
+		th.default_font = font_body
+	th.default_font_size = 15
+	th.set_color("font_color", "Button", INK)
+	th.set_color("font_disabled_color", "Button", Color(0.60, 0.48, 0.36))
+	th.set_color("font_color", "PrimaryButton", INK)
+	th.set_color("font_disabled_color", "PrimaryButton", Color(0.60, 0.48, 0.36))
+	th.set_stylebox("normal", "Button", _clay(CREAM))
+	th.set_stylebox("hover", "Button", _clay(Color(1.0, 0.97, 0.90)))
+	var pressed := _clay(CREAM_DIM)
+	pressed.border_width_bottom = 3
+	pressed.content_margin_top = 12
+	th.set_stylebox("pressed", "Button", pressed)
+	var dis := _clay(Color(0.94, 0.89, 0.76), Color(0.79, 0.66, 0.49))
+	th.set_stylebox("disabled", "Button", dis)
+	th.set_stylebox("focus", "Button", _focus_box())
+	th.set_stylebox("normal", "PrimaryButton", _clay(Color(1.0, 0.79, 0.25)))
+	th.set_stylebox("hover", "PrimaryButton", _clay(Color(1.0, 0.84, 0.35)))
+	var ppressed := _clay(Color(1.0, 0.79, 0.25))
+	ppressed.border_width_bottom = 3
+	ppressed.content_margin_top = 12
+	th.set_stylebox("pressed", "PrimaryButton", ppressed)
+	th.set_stylebox("disabled", "PrimaryButton", dis)
+	th.set_stylebox("focus", "PrimaryButton", _focus_box())
+	ui_theme = th
+
+func _focus_box() -> StyleBoxFlat:
+	# Fokus keyboard/gamepad: border biru 3 px di luar tombol (jangan dihapus).
+	var s := StyleBoxFlat.new()
+	s.draw_center = false
+	s.corner_radius_top_left = 16
+	s.corner_radius_top_right = 16
+	s.corner_radius_bottom_left = 16
+	s.corner_radius_bottom_right = 16
+	s.border_width_left = 3
+	s.border_width_right = 3
+	s.border_width_top = 3
+	s.border_width_bottom = 3
+	s.border_color = FOCUS_BLUE
+	s.expand_margin_left = 3.0
+	s.expand_margin_right = 3.0
+	s.expand_margin_top = 3.0
+	s.expand_margin_bottom = 3.0
+	return s
+
+func _apply_theme_to(c: Control) -> void:
+	c.theme = ui_theme
 
 func _style(bg: Color, radius: int = 14) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
@@ -83,7 +170,7 @@ func _style(bg: Color, radius: int = 14) -> StyleBoxFlat:
 
 func _chip_style() -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
-	s.bg_color = Color(0.10, 0.09, 0.155, 0.88)
+	s.bg_color = Color(0.23, 0.14, 0.09, 0.88)
 	s.corner_radius_top_left = 10
 	s.corner_radius_top_right = 10
 	s.corner_radius_bottom_left = 10
@@ -99,6 +186,8 @@ func _chip_style() -> StyleBoxFlat:
 func _title_label(t: String, size: int) -> Label:
 	var l := Label.new()
 	l.text = t
+	if font_title:
+		l.add_theme_font_override("font", font_title)
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", Color(1, 1, 1))
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -113,19 +202,7 @@ func _dlabel(t: String, size: int, c: Color = INK) -> Label:
 	return l
 
 func _style_light(bg: Color, border: Color) -> StyleBoxFlat:
-	var s := StyleBoxFlat.new()
-	s.bg_color = bg
-	s.corner_radius_top_left = 14
-	s.corner_radius_top_right = 14
-	s.corner_radius_bottom_left = 14
-	s.corner_radius_bottom_right = 14
-	s.content_margin_left = 16
-	s.content_margin_right = 16
-	s.content_margin_top = 12
-	s.content_margin_bottom = 12
-	s.border_width_bottom = 3
-	s.border_color = border
-	return s
+	return _clay(bg, border, 14)
 
 func _pill(t: String, bg: Color, fg: Color, size: int = 14) -> PanelContainer:
 	var p := PanelContainer.new()
@@ -162,6 +239,7 @@ func _build_menu() -> void:
 	menu_panel.set_anchors_preset(Control.PRESET_CENTER)
 	menu_panel.position = Vector2(-540, -330)
 	menu_panel.custom_minimum_size = Vector2(1080, 660)
+	_apply_theme_to(menu_panel)
 	add_child(menu_panel)
 	var cols := HBoxContainer.new()
 	cols.add_theme_constant_override("separation", 30)
@@ -298,6 +376,7 @@ func _build_help_overlay() -> void:
 	help_overlay.position = Vector2(-260, -220)
 	help_overlay.custom_minimum_size = Vector2(520, 440)
 	help_overlay.visible = false
+	_apply_theme_to(help_overlay)
 	add_child(help_overlay)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 10)
@@ -323,6 +402,7 @@ func _build_settings_overlay() -> void:
 	settings_overlay.position = Vector2(-230, -170)
 	settings_overlay.custom_minimum_size = Vector2(460, 340)
 	settings_overlay.visible = false
+	_apply_theme_to(settings_overlay)
 	add_child(settings_overlay)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 10)
@@ -366,136 +446,152 @@ func _build_hud() -> void:
 	hud_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	hud_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud_root.visible = false
+	_apply_theme_to(hud_root)
 	add_child(hud_root)
 	# kiri atas: tombol pause + nama level
 	pause_btn = Button.new()
 	pause_btn.text = "II"
-	pause_btn.custom_minimum_size = Vector2(52, 52)
+	pause_btn.custom_minimum_size = Vector2(44, 44)
 	pause_btn.add_theme_font_size_override("font_size", 20)
 	pause_btn.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	pause_btn.position = Vector2(10, 8)
 	pause_btn.pressed.connect(func() -> void: game.toggle_pause())
 	hud_root.add_child(pause_btn)
-	level_label = _title_label("", 16)
+	level_label = _title_label("", 15)
 	level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	level_label.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	level_label.position = Vector2(70, 8)
-	level_label.custom_minimum_size = Vector2(300, 52)
+	level_label.position = Vector2(62, 8)
 	level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	hud_root.add_child(level_label)
-	# tengah atas: panel skor (timer + skor + bintang)
-	var score_panel := PanelContainer.new()
+	# tengah atas: panel skor 420x76 (timer + skor + blok bintang)
+	score_panel = PanelContainer.new()
+	score_panel.name = "ScorePanel"
 	score_panel.add_theme_stylebox_override("panel", _style_light(CREAM, INK))
 	score_panel.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	score_panel.position = Vector2(-270, 8)
-	score_panel.custom_minimum_size = Vector2(540, 104)
+	score_panel.position = Vector2(-210, 8)
+	score_panel.custom_minimum_size = Vector2(420, 76)
 	hud_root.add_child(score_panel)
 	var srow := HBoxContainer.new()
-	srow.add_theme_constant_override("separation", 18)
+	srow.add_theme_constant_override("separation", 14)
 	srow.alignment = BoxContainer.ALIGNMENT_CENTER
 	score_panel.add_child(srow)
-	time_label = _dlabel("3:00", 32)
+	time_label = _dlabel("3:00", 26)
 	srow.add_child(time_label)
 	var scol := VBoxContainer.new()
-	scol.add_theme_constant_override("separation", 2)
+	scol.add_theme_constant_override("separation", 0)
 	srow.add_child(scol)
 	var srow2 := HBoxContainer.new()
-	srow2.add_theme_constant_override("separation", 10)
+	srow2.add_theme_constant_override("separation", 8)
 	scol.add_child(srow2)
-	var sk := _dlabel("SKOR", 14, INK_SOFT)
+	var sk := _dlabel("SKOR", 11, INK_SOFT)
 	srow2.add_child(sk)
-	score_label = _dlabel("0", 36)
+	score_label = _dlabel("0", 26)
 	srow2.add_child(score_label)
-	var star_row := HBoxContainer.new()
-	star_row.add_theme_constant_override("separation", 12)
-	star_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	scol.add_child(star_row)
-	star_labels.clear()
-	for i in range(3):
-		var sl := _dlabel("☆", 22, INK_SOFT)
-		star_row.add_child(sl)
-		star_labels.append(sl)
+	# blok bintang 180 px: bintang di x ambang + bar 6 px + angka 10 px
+	var starblock := Control.new()
+	starblock.custom_minimum_size = Vector2(180, 30)
+	scol.add_child(starblock)
 	star_bar = ProgressBar.new()
 	star_bar.min_value = 0.0
 	star_bar.max_value = 100.0
 	star_bar.value = 0.0
 	star_bar.show_percentage = false
-	star_bar.custom_minimum_size = Vector2(300, 10)
-	scol.add_child(star_bar)
-	var thr_row := HBoxContainer.new()
-	thr_row.add_theme_constant_override("separation", 4)
-	thr_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	scol.add_child(thr_row)
+	star_bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	star_bar.offset_top = 12.0
+	star_bar.offset_bottom = 18.0
+	starblock.add_child(star_bar)
+	star_labels.clear()
 	thr_labels.clear()
 	for i in range(3):
-		var tl := _dlabel("300", 12, INK_SOFT)
-		tl.custom_minimum_size = Vector2(96, 16)
+		var sl := _dlabel("☆", 14, INK_SOFT)
+		sl.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		sl.position = Vector2(60.0 * float(i + 1) - 8.0, -4.0)
+		starblock.add_child(sl)
+		star_labels.append(sl)
+		var tl := _dlabel("300", 10, INK_SOFT)
+		tl.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		tl.position = Vector2(60.0 * float(i + 1) - 20.0, 18.0)
+		tl.custom_minimum_size = Vector2(40, 14)
 		tl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		thr_row.add_child(tl)
+		starblock.add_child(tl)
 		thr_labels.append(tl)
-	# kiri: panel pesanan
-	var left := PanelContainer.new()
-	left.add_theme_stylebox_override("panel", _style_light(CREAM, INK))
-	left.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	left.position = Vector2(10, 70)
-	left.custom_minimum_size = Vector2(390, 120)
-	hud_root.add_child(left)
-	var lv := VBoxContainer.new()
-	lv.add_theme_constant_override("separation", 6)
-	left.add_child(lv)
-	var hhead := HBoxContainer.new()
-	lv.add_child(hhead)
-	var oh := _dlabel("PESANAN", 17)
-	hhead.add_child(oh)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hhead.add_child(spacer)
-	seats_label = _dlabel("", 13, INK_SOFT)
-	hhead.add_child(seats_label)
+	# kiri: rel pesanan transparan 252 px (tanpa panel pembungkus)
+	orders_rail = VBoxContainer.new()
+	orders_rail.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	orders_rail.position = Vector2(12, 64)
+	orders_rail.custom_minimum_size = Vector2(252, 0)
+	orders_rail.add_theme_constant_override("separation", 6)
+	hud_root.add_child(orders_rail)
+	var headpill := PanelContainer.new()
+	headpill.name = "HeadPill"
+	var hs := StyleBoxFlat.new()
+	hs.bg_color = CREAM
+	hs.corner_radius_top_left = 9
+	hs.corner_radius_top_right = 9
+	hs.corner_radius_bottom_left = 9
+	hs.corner_radius_bottom_right = 9
+	hs.content_margin_left = 10
+	hs.content_margin_right = 10
+	hs.content_margin_top = 3
+	hs.content_margin_bottom = 3
+	headpill.add_theme_stylebox_override("panel", hs)
+	seats_label = _dlabel("PESANAN", 13)
+	headpill.add_child(seats_label)
+	orders_rail.add_child(headpill)
 	orders_box = VBoxContainer.new()
-	orders_box.add_theme_constant_override("separation", 8)
-	lv.add_child(orders_box)
-	spawn_label = _dlabel("", 13, INK_SOFT)
-	lv.add_child(spawn_label)
+	orders_box.add_theme_constant_override("separation", 6)
+	orders_rail.add_child(orders_box)
 	info_label = _dlabel("", 13, INK_SOFT)
-	lv.add_child(info_label)
-	# kanan: panel bot bantu
-	var right := PanelContainer.new()
-	right.add_theme_stylebox_override("panel", _style_light(CREAM, INK))
-	right.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	right.position = Vector2(-330, 70)
-	right.custom_minimum_size = Vector2(320, 120)
-	hud_root.add_child(right)
-	var rv := VBoxContainer.new()
-	rv.add_theme_constant_override("separation", 8)
-	right.add_child(rv)
-	var rhead := HBoxContainer.new()
-	rv.add_child(rhead)
-	var bh := _dlabel("BOT BANTU", 16)
-	rhead.add_child(bh)
-	var rsp := Control.new()
-	rsp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rhead.add_child(rsp)
+	info_label.visible = false
+	hud_root.add_child(info_label)
+	# kanan: tombol rekrut + baris bot kompak (tanpa panel/kepala)
+	bot_side = VBoxContainer.new()
+	bot_side.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	bot_side.position = Vector2(-232, 12)
+	bot_side.custom_minimum_size = Vector2(220, 0)
+	bot_side.add_theme_constant_override("separation", 6)
+	hud_root.add_child(bot_side)
 	recruit_btn = Button.new()
-	recruit_btn.custom_minimum_size = Vector2(170, 36)
+	recruit_btn.theme_type_variation = "PrimaryButton"
+	recruit_btn.custom_minimum_size = Vector2(220, 44)
 	recruit_btn.add_theme_font_size_override("font_size", 14)
 	recruit_btn.pressed.connect(func() -> void: game.recruit_bot())
-	rhead.add_child(recruit_btn)
+	bot_side.add_child(recruit_btn)
 	bot_rows = VBoxContainer.new()
-	bot_rows.add_theme_constant_override("separation", 8)
-	rv.add_child(bot_rows)
-	# banner kebakaran (tengah, di bawah panel skor)
+	bot_rows.add_theme_constant_override("separation", 6)
+	bot_side.add_child(bot_rows)
+	# banner kebakaran 420 px (tengah, di bawah panel skor), persisten
 	fire_banner = PanelContainer.new()
 	fire_banner.add_theme_stylebox_override("panel", _style_light(Color(1.0, 0.90, 0.87), BLOOD))
 	fire_banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	fire_banner.position = Vector2(-330, 120)
-	fire_banner.custom_minimum_size = Vector2(660, 64)
+	fire_banner.position = Vector2(-210, 92)
+	fire_banner.custom_minimum_size = Vector2(420, 64)
 	fire_banner.visible = false
 	hud_root.add_child(fire_banner)
 	var frow := HBoxContainer.new()
-	frow.add_theme_constant_override("separation", 14)
+	frow.add_theme_constant_override("separation", 12)
 	frow.alignment = BoxContainer.ALIGNMENT_CENTER
 	fire_banner.add_child(frow)
+	var fico := PanelContainer.new()
+	var fs := StyleBoxFlat.new()
+	fs.bg_color = BLOOD
+	fs.corner_radius_top_left = 10
+	fs.corner_radius_top_right = 10
+	fs.corner_radius_bottom_left = 10
+	fs.corner_radius_bottom_right = 10
+	fs.content_margin_left = 10
+	fs.content_margin_right = 10
+	fs.content_margin_top = 4
+	fs.content_margin_bottom = 4
+	fico.add_theme_stylebox_override("panel", fs)
+	var fl := Label.new()
+	fl.text = "!"
+	fl.add_theme_font_size_override("font_size", 22)
+	fl.add_theme_color_override("font_color", Color(1, 1, 1))
+	fl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	fl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	fico.add_child(fl)
+	frow.add_child(fico)
 	var fv := VBoxContainer.new()
 	fv.add_theme_constant_override("separation", 0)
 	frow.add_child(fv)
@@ -503,31 +599,32 @@ func _build_hud() -> void:
 	fv.add_child(fire_title)
 	fire_sub = _dlabel("", 14, INK_SOFT)
 	fv.add_child(fire_sub)
-	# bawah tengah: tangan + tombol aksi
-	var bottom := HBoxContainer.new()
-	bottom.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	bottom.position = Vector2(-340, -104)
-	bottom.custom_minimum_size = Vector2(680, 80)
-	bottom.add_theme_constant_override("separation", 12)
-	bottom.alignment = BoxContainer.ALIGNMENT_CENTER
-	hud_root.add_child(bottom)
+	# bawah tengah: bar 460x64 (tangan 200 + aksi 244), tombol sembunyi bila kosong
+	bottom_bar = HBoxContainer.new()
+	bottom_bar.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	bottom_bar.position = Vector2(-230, -80)
+	bottom_bar.custom_minimum_size = Vector2(460, 64)
+	bottom_bar.add_theme_constant_override("separation", 12)
+	bottom_bar.alignment = BoxContainer.ALIGNMENT_CENTER
+	hud_root.add_child(bottom_bar)
 	var hand := PanelContainer.new()
 	hand.add_theme_stylebox_override("panel", _style_light(CREAM, INK))
-	hand.custom_minimum_size = Vector2(280, 76)
-	bottom.add_child(hand)
+	hand.custom_minimum_size = Vector2(200, 64)
+	bottom_bar.add_child(hand)
 	var hv := VBoxContainer.new()
 	hv.add_theme_constant_override("separation", 0)
 	hand.add_child(hv)
-	hv.add_child(_dlabel("TANGAN", 12, INK_SOFT))
-	carry_label = _dlabel("Kosong", 20)
+	hv.add_child(_dlabel("TANGAN", 11, INK_SOFT))
+	carry_label = _dlabel("Kosong", 16)
 	hv.add_child(carry_label)
 	action_btn = Button.new()
-	action_btn.custom_minimum_size = Vector2(380, 76)
-	action_btn.add_theme_font_size_override("font_size", 22)
+	action_btn.theme_type_variation = "PrimaryButton"
+	action_btn.custom_minimum_size = Vector2(244, 64)
+	action_btn.add_theme_font_size_override("font_size", 20)
 	action_btn.pressed.connect(func() -> void:
 		if game.playing and not game.paused:
 			game.do_interact())
-	bottom.add_child(action_btn)
+	bottom_bar.add_child(action_btn)
 	msg_label = _title_label("", 22)
 	msg_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	msg_label.position = Vector2(-300, 192)
@@ -557,6 +654,7 @@ func _build_over() -> void:
 	over_panel.position = Vector2(-330, -360)
 	over_panel.custom_minimum_size = Vector2(660, 700)
 	over_panel.visible = false
+	_apply_theme_to(over_panel)
 	add_child(over_panel)
 	over_rows = VBoxContainer.new()
 	over_rows.add_theme_constant_override("separation", 8)
@@ -652,6 +750,7 @@ func _build_pause() -> void:
 	pause_panel.position = Vector2(-170, -130)
 	pause_panel.custom_minimum_size = Vector2(340, 260)
 	pause_panel.visible = false
+	_apply_theme_to(pause_panel)
 	add_child(pause_panel)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 12)
@@ -691,6 +790,10 @@ func show_hud() -> void:
 	_thr = [int(game.level.get("star_1", 300)), int(game.level.get("star_2", 550)), int(game.level.get("star_3", 800))]
 	for i in range(3):
 		(thr_labels[i] as Label).text = str(_thr[i])
+		# bintang + angka di x ambang proporsional (blok 180 px)
+		var fx := 180.0 * float(_thr[i]) / maxf(float(_thr[2]), 1.0)
+		(star_labels[i] as Label).position = Vector2(fx - 8.0, -4.0)
+		(thr_labels[i] as Label).position = Vector2(fx - 20.0, 18.0)
 	_last_bot_sig = ""
 	_last_card_ms = 0
 	set_score(game.orders.score)
@@ -737,7 +840,7 @@ func set_bots(_n: int) -> void:
 		recruit_btn.text = "Bot penuh (2/2)"
 		recruit_btn.disabled = true
 	else:
-		recruit_btn.text = "[Q] rekrut · %d poin" % cost
+		recruit_btn.text = "%s rekrut · %d poin" % [_recruit_key, cost]
 		recruit_btn.disabled = false
 	for i in range(game.bots.size()):
 		bot_rows.add_child(_bot_row(game.bots[i], i + 1))
@@ -756,6 +859,7 @@ func _bot_sig() -> String:
 
 func _bot_row(b, num: int) -> PanelContainer:
 	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(220, 40)
 	card.add_theme_stylebox_override("panel", _style_light(CREAM_DIM, INK_SOFT))
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 10)
@@ -767,7 +871,7 @@ func _bot_row(b, num: int) -> PanelContainer:
 	var top := HBoxContainer.new()
 	top.add_theme_constant_override("separation", 8)
 	v.add_child(top)
-	top.add_child(_dlabel("Bot %d" % num, 17))
+	top.add_child(_dlabel("Bot %d" % num, 15))
 	var pill_txt: String = str(b._job)
 	var pill_bg := Color(0.55, 0.55, 0.58)
 	var pill_fg := Color(1, 1, 1)
@@ -811,9 +915,9 @@ func set_info(t: String) -> void:
 func set_prompt(action: String) -> void:
 	_last_prompt = action
 	if action == "":
-		action_btn.disabled = true
-		action_btn.text = prompt_key_txt + " ..."
+		action_btn.visible = false
 		return
+	action_btn.visible = true
 	action_btn.disabled = false
 	action_btn.text = "%s %s" % [prompt_key_txt, action]
 
@@ -822,6 +926,8 @@ func set_carry(t: String) -> void:
 
 func set_prompt_key(key: String) -> void:
 	prompt_key_txt = key
+	_recruit_key = "[Y]" if key == "[A]" else "[Q]"
+	_last_bot_sig = ""
 	set_prompt(_last_prompt)
 
 
@@ -843,19 +949,23 @@ func refresh_orders(orders: Array) -> void:
 	_last_card_ms = now
 	for c in orders_box.get_children():
 		c.queue_free()
-	# header kursi + perkiraan pelanggan berikut
+	# header: pill "PESANAN · diambil/total"
 	var si: Array = game.seats_info()
-	seats_label.text = "%d dari %d kursi" % [si[0], si[1]]
-	if int(si[0]) < int(si[1]):
-		spawn_label.text = "Kursi kosong · pelanggan berikutnya ±%d dtk" % maxi(1, int(ceil(game.spawn_cd)))
-	else:
-		spawn_label.text = "Penuh · tunggu kursi kosong"
+	seats_label.text = "PESANAN · %d/%d" % [si[0], si[1]]
 	if orders.is_empty():
-		var l := _dlabel("(belum ada order)", 15, INK_SOFT)
+		var l := _dlabel("(belum ada order)", 13, INK_SOFT)
 		orders_box.add_child(l)
 		return
-	for o in orders:
-		orders_box.add_child(_order_card(o))
+	# urut sabar paling sedikit; maksimal 3 kartu + pill +N
+	var sorted: Array = orders.duplicate()
+	sorted.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a.get("time_left", 0.0)) < float(b.get("time_left", 0.0)))
+	var shown: int = mini(3, sorted.size())
+	for i in range(shown):
+		orders_box.add_child(_order_card(sorted[i]))
+	if sorted.size() > shown:
+		var more := _pill("+%d pesanan lagi" % (sorted.size() - shown), CREAM_DIM, INK_SOFT, 12)
+		more.custom_minimum_size = Vector2(0, 26)
+		orders_box.add_child(more)
 
 func _order_card(o: Dictionary) -> PanelContainer:
 	var r: Dictionary = o["recipe"]
@@ -865,60 +975,115 @@ func _order_card(o: Dictionary) -> PanelContainer:
 	var tmax := float(o.get("time_max", 90.0))
 	var urgent: bool = tleft < 20.0
 	var card := PanelContainer.new()
-	var bg := CREAM if not urgent else Color(1.0, 0.88, 0.85)
+	var bg := CREAM if not urgent else Color(1.0, 0.91, 0.87)
 	card.add_theme_stylebox_override("panel", _style_light(bg, BLOOD if urgent else INK))
-	card.custom_minimum_size = Vector2(350, 0)
+	card.custom_minimum_size = Vector2(252, 0)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 5)
+	v.add_theme_constant_override("separation", 4)
 	card.add_child(v)
-	# baris nama + badge meja
+	# baris atas: nama + (klaim) pill Bot N + pill meja
 	var hhead := HBoxContainer.new()
+	hhead.add_theme_constant_override("separation", 6)
 	v.add_child(hhead)
-	var head := _dlabel(str(r.get("label", "?")), 19)
+	var head := _dlabel(str(r.get("label", "?")), 16)
 	head.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.clip_text = true
 	hhead.add_child(head)
-	hhead.add_child(_pill(str(o.get("table_id", "?")), INK, Color(1, 1, 1), 14))
-	# chip bahan: hijau + centang kalau sudah terpenuhi di piring
+	var bidx: int = int(game.order_bot_idx(uid))
+	if bidx > 0:
+		hhead.add_child(_pill("Bot %d" % bidx, LEAF, Color(1, 1, 1), 12))
+	hhead.add_child(_pill(str(o.get("table_id", "?")), INK, Color(1, 1, 1), 12))
+	# baris bahan: chip kecil tanpa kurung; satu tag "cincang" bila semua-chop
 	var prog: Array = game.order_progress(o)
+	var all_chop := true
+	for n in needs:
+		if not bool(n.get("chop", false)):
+			all_chop = false
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	row.add_theme_constant_override("separation", 6)
 	v.add_child(row)
 	for i in range(needs.size()):
 		var n: Dictionary = needs[i]
 		var is_done: bool = i < prog.size() and bool(prog[i])
-		var dot := ColorRect.new()
-		dot.custom_minimum_size = Vector2(14, 14)
-		if is_done:
-			dot.color = LEAF
-		else:
-			dot.color = LevelData.INGREDIENTS.get(str(n.get("item", "")), {}).get("color", Color.WHITE)
-		row.add_child(dot)
-		var lbl_txt := _need_short(n)
-		if is_done:
-			lbl_txt += " ✓"
-		var lbl := _dlabel(lbl_txt, 14, LEAF if is_done else INK)
-		row.add_child(lbl)
-	# bar sabar + detik
+		row.add_child(_chip(_need_name(n), str(n.get("item", "")), is_done))
+	if all_chop and not needs.is_empty():
+		var tag := _dlabel("cincang", 12, INK_SOFT)
+		row.add_child(tag)
+	# baris bawah: bar 6 px + garis 66%/50% + detik
 	var brow := HBoxContainer.new()
 	brow.add_theme_constant_override("separation", 8)
 	v.add_child(brow)
+	var barwrap := Control.new()
+	barwrap.custom_minimum_size = Vector2(150, 10)
+	barwrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	barwrap.clip_contents = true
+	brow.add_child(barwrap)
 	var bar := ProgressBar.new()
 	bar.min_value = 0.0
 	bar.max_value = 100.0
 	bar.value = 100.0 * tleft / maxf(tmax, 0.01)
 	bar.show_percentage = false
-	bar.custom_minimum_size = Vector2(250, 10)
-	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	brow.add_child(bar)
-	var t := _dlabel("%d dtk" % int(ceil(tleft)), 13, BLOOD if urgent else INK_SOFT)
+	bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	bar.offset_top = 2.0
+	bar.offset_bottom = 8.0
+	barwrap.add_child(bar)
+	for frac in [0.66, 0.5]:
+		var tick := ColorRect.new()
+		tick.color = Color(0.30, 0.20, 0.13, 0.55)
+		tick.set_anchors_preset(Control.PRESET_TOP_LEFT)
+		tick.anchor_right = frac
+		tick.offset_left = -1.0
+		tick.offset_right = 1.0
+		tick.offset_top = 1.0
+		tick.offset_bottom = 9.0
+		barwrap.add_child(tick)
+	var t := _dlabel("%d dtk" % int(ceil(tleft)), 12, BLOOD if urgent else INK_SOFT)
 	brow.add_child(t)
-	# badge klaim: Bot N atau belum diambil
-	var bidx: int = int(game.order_bot_idx(uid))
-	if bidx > 0:
-		v.add_child(_pill("Bot %d" % bidx, LEAF, Color(1, 1, 1), 13))
-	else:
-		v.add_child(_pill("Belum diambil bot", Color(0.6, 0.6, 0.62), Color(1, 1, 1), 13))
 	return card
+
+# Chip bahan kecil: swatch 10 + teks 12. Selesai = hijau + ✓ (warna+ikon+teks).
+func _chip(txt: String, ing: String, done: bool) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 4)
+	var dot := ColorRect.new()
+	dot.custom_minimum_size = Vector2(10, 10)
+	if done:
+		dot.color = LEAF
+	else:
+		dot.color = LevelData.INGREDIENTS.get(ing, {}).get("color", Color.WHITE)
+	h.add_child(dot)
+	var lbl := _dlabel(txt + (" ✓" if done else ""), 12, LEAF if done else INK)
+	h.add_child(lbl)
+	if done:
+		var bg := StyleBoxFlat.new()
+		bg.bg_color = Color(0.87, 0.95, 0.82)
+		bg.corner_radius_top_left = 7
+		bg.corner_radius_top_right = 7
+		bg.corner_radius_bottom_left = 7
+		bg.corner_radius_bottom_right = 7
+		bg.border_width_left = 1
+		bg.border_width_right = 1
+		bg.border_width_top = 1
+		bg.border_width_bottom = 1
+		bg.border_color = LEAF
+		bg.content_margin_left = 6
+		bg.content_margin_right = 6
+		bg.content_margin_top = 2
+		bg.content_margin_bottom = 2
+		var wrap := PanelContainer.new()
+		wrap.add_theme_stylebox_override("panel", bg)
+		h.remove_child(dot)
+		h.remove_child(lbl)
+		wrap.add_child(h)
+		var outer := HBoxContainer.new()
+		outer.add_child(wrap)
+		return outer
+	return h
+
+# Nama bahan tanpa tanda kurung (tag olah jadi satu di ujung baris).
+func _need_name(n: Dictionary) -> String:
+	var rule: Dictionary = LevelData.INGREDIENTS.get(str(n.get("item", "")), {})
+	return str(rule.get("label", n.get("item", "?")))
 
 func _need_short(n: Dictionary) -> String:
 	var rule: Dictionary = LevelData.INGREDIENTS.get(str(n.get("item", "")), {})

@@ -193,18 +193,19 @@ func _build_floor() -> void:
 			t.mesh = bm
 			var wp := ProtoConfig.wpos(gx, gy)
 			t.position = Vector3(wp.x, -0.1, wp.z)
-			# warna lantai per zona: coklat=bahan, merah=masak, kuning=rakit, biru=makan
+			# warna lantai per zona hangat: bahan cokelat muda, masak krem-pasir,
+			# rakit kekuningan, makan mint
 			var v := rng.randf_range(-0.02, 0.03)
 			var base := Color(0.42, 0.24, 0.20)
 			match ProtoConfig.floor_zone(gx, gy):
 				"bahan":
-					base = Color(0.45 + v, 0.31 + v, 0.20 + v)
+					base = Color(0.80 + v, 0.60 + v, 0.40 + v)
 				"masak":
-					base = Color(0.44 + v, 0.22 + v, 0.22 + v)
+					base = Color(0.78 + v, 0.64 + v, 0.46 + v)
 				"rakit":
-					base = Color(0.52 + v, 0.44 + v, 0.26 + v)
+					base = Color(0.84 + v, 0.72 + v, 0.38 + v)
 				"makan":
-					base = Color(0.24 + v, 0.30 + v, 0.46 + v)
+					base = Color(0.52 + v, 0.70 + v, 0.64 + v)
 			if rng.randf() < 0.06:
 				base = base.darkened(0.12)
 			t.material_override = _mat(base)
@@ -215,7 +216,7 @@ func _build_floor() -> void:
 	vm.size = Vector3(80.0, 0.1, 80.0)
 	void_plane.mesh = vm
 	void_plane.position = Vector3(0, -0.35, 0)
-	void_plane.material_override = _mat(Color(0.06, 0.055, 0.10))
+	void_plane.material_override = _mat(Color(0.18, 0.12, 0.09))
 	floor_root.add_child(void_plane)
 	# collision lantai 16x8
 	var floor_body := StaticBody3D.new()
@@ -304,9 +305,10 @@ func _glb_decor(path: String, pos: Vector3, scl: float, rot_y: float = 0.0) -> v
 	level_root.add_child(n)
 
 func _build_walls() -> void:
-	# tembok ungu tebal + tepi atas terang (acuan dapur.png).
+	# tembok terracotta tebal + tepi atas terang (selaras HUD hangat).
 	# Baris depan (selatan, sisi kamera) PENDEK biar tidak nutupi player.
-	var wc := Color(0.34, 0.28, 0.48)
+	var wc := Color(0.71, 0.34, 0.23)
+	var cap := Color(0.80, 0.45, 0.32)
 	for cell in ProtoConfig.wall_cells():
 		var wp := ProtoConfig.wpos(cell.x, cell.y)
 		var h := 0.9
@@ -314,7 +316,7 @@ func _build_walls() -> void:
 			h = 0.35
 		elif cell.y == 7:
 			h = 0.6
-		_wall_box(Vector3(wp.x, h / 2.0, wp.z), Vector3(1.0, h, 1.0), wc)
+		_wall_box(Vector3(wp.x, h / 2.0, wp.z), Vector3(1.0, h, 1.0), wc, cap)
 	# trim warna zona di tepi lantai tiap station (bukan tembok, bukan label besar)
 	_build_trims()
 	# obor di 4 sudut DALAM bangunan (yang luar dihapus: ga ada fungsinya)

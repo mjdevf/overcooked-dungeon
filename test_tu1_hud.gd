@@ -70,9 +70,9 @@ func _process(_delta: float) -> bool:
 			return false
 		var txt := _texts(card)
 		check("Salad Dungeon" in txt and "T1" in txt, "kartu nama + meja")
-		check("Belum diambil bot" in txt, "badge belum diklaim")
+		check("Belum diambil bot" not in txt, "tanpa pill default")
 		check("cincang" in txt, "chip bahan + tag")
-		check("kursi" in h.seats_label.text, "header kursi")
+		check("PESANAN" in h.seats_label.text, "header kursi")
 		game.orders.score = 500
 		game.recruit_bot()
 		mark = frame
