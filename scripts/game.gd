@@ -193,7 +193,7 @@ func _build_floor() -> void:
 			t.mesh = bm
 			var wp := ProtoConfig.wpos(gx, gy)
 			t.position = Vector3(wp.x, -0.1, wp.z)
-			# warna lantai per zona: coklat=bahan, merah=masak, biru=makan
+			# warna lantai per zona: coklat=bahan, merah=masak, kuning=rakit, biru=makan
 			var v := rng.randf_range(-0.02, 0.03)
 			var base := Color(0.42, 0.24, 0.20)
 			match ProtoConfig.floor_zone(gx, gy):
@@ -201,6 +201,8 @@ func _build_floor() -> void:
 					base = Color(0.45 + v, 0.31 + v, 0.20 + v)
 				"masak":
 					base = Color(0.44 + v, 0.22 + v, 0.22 + v)
+				"rakit":
+					base = Color(0.52 + v, 0.44 + v, 0.26 + v)
 				"makan":
 					base = Color(0.24 + v, 0.30 + v, 0.46 + v)
 			if rng.randf() < 0.06:

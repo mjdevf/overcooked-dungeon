@@ -8,14 +8,14 @@ const W := 12
 const H := 12
 
 const RAW := [
-	"####SSSShh##",
+	"##BXSSSShh##",
 	"T..........P",
 	"T..........P",
 	"t..........L",
 	"s....@.....L",
 	"r..........L",
-	"k..........#",
-	"##W#B####AK#",
+	"k..........W",
+	"#########AK#",
 	"#.cMc.cMc.q#",
 	"#.........q#",
 	"#.cMc.cMc.q#",
@@ -41,13 +41,12 @@ const STATIONS := [
 	{"kind": "plating", "pos": [11, 3]},
 	{"kind": "plating", "pos": [11, 4]},
 	{"kind": "plating", "pos": [11, 5]},
-	{"kind": "sink", "pos": [2, 7]},
-	{"kind": "trash", "pos": [4, 7]},
+	{"kind": "sink", "pos": [11, 6]},
+	{"kind": "trash", "pos": [2, 0]},
 	{"kind": "pass", "pos": [9, 7]},
 	{"kind": "cashier", "pos": [10, 7]},
-	# APAR di sudut dapur barat (sel bebas, tak menghalangi alur; row-7
-	# full-blocked jadi APAR wajib di sisi dapur agar terjangkau)
-	{"kind": "apar", "pos": [1, 6]},
+	# APAR di samping kompor 1 (sisi atas), jarak 1 langkah
+	{"kind": "apar", "pos": [3, 0]},
 ]
 
 const DINING := {
@@ -65,7 +64,7 @@ const DINING := {
 const SPAWN := [5, 4]
 
 # sel non-tembok di baris tembok: station yang nempel tembok + pintu (D)
-const NON_WALL := {"2,7": 1, "4,7": 1, "9,7": 1, "10,7": 1, "5,11": 1}
+const NON_WALL := {"9,7": 1, "10,7": 1, "5,11": 1}
 
 # warna trim zona per kind (tipis di tepi lantai, bukan tembok)
 const TRIM := {
@@ -109,9 +108,15 @@ static func wall_cells() -> Array:
 	return out
 
 static func floor_zone(gx: int, gy: int) -> String:
-	# dapur merah-bata, ruang makan biru
+	# ruang makan biru; dapur dibagi 3 zona: bahan kiri, masak atas, rakit kanan
 	if gy >= 8:
 		return "makan"
+	if gx == 1 and gy >= 1 and gy <= 6:
+		return "bahan"
+	if gy == 1 and gx >= 2 and gx <= 9:
+		return "masak"
+	if gx == 10 and gy >= 1 and gy <= 6:
+		return "rakit"
 	return "masak"
 
 static func active_tables() -> Array:
