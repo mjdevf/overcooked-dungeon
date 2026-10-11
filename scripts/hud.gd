@@ -54,6 +54,7 @@ var over_panel: PanelContainer
 var over_title: Label
 var over_detail: Label
 var over_rekor: Label
+var over_rows: VBoxContainer
 var pause_panel: PanelContainer
 var _last_card_ms := 0
 
@@ -547,32 +548,102 @@ func _make_chip(parent: Control, t: String) -> Label:
 	p.add_child(l)
 	return l
 
-# ---------- game over & pause ----------
+# ---------- hasil level (ala mockup) ----------
 
 func _build_over() -> void:
 	over_panel = PanelContainer.new()
-	over_panel.add_theme_stylebox_override("panel", _style(PANEL, 18))
+	over_panel.add_theme_stylebox_override("panel", _style_light(CREAM, INK))
 	over_panel.set_anchors_preset(Control.PRESET_CENTER)
-	over_panel.position = Vector2(-210, -190)
-	over_panel.custom_minimum_size = Vector2(420, 380)
+	over_panel.position = Vector2(-330, -360)
+	over_panel.custom_minimum_size = Vector2(660, 700)
 	over_panel.visible = false
 	add_child(over_panel)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 12)
-	over_panel.add_child(v)
-	over_title = _title_label("WAKTU HABIS!", 34)
-	v.add_child(over_title)
-	over_rekor = _title_label("", 22)
-	over_rekor.add_theme_color_override("font_color", ACCENT)
-	v.add_child(over_rekor)
-	over_detail = _title_label("", 20)
-	v.add_child(over_detail)
-	var again := _btn("Main Lagi")
+	over_rows = VBoxContainer.new()
+	over_rows.add_theme_constant_override("separation", 8)
+	over_panel.add_child(over_rows)
+
+func _over_row(left: String, dim: String, val: String, c: Color) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	var l := _dlabel(left, 18)
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(l)
+	if dim != "":
+		h.add_child(_dlabel(dim, 14, INK_SOFT))
+	var r := _dlabel(val, 20, c)
+	h.add_child(r)
+	return h
+
+func show_over(score: int, stars: int, lv_name: String, rekor: bool, ledger: Dictionary, level_idx: int, old_best: int) -> void:
+	hud_root.visible = false
+	pause_panel.visible = false
+	over_panel.visible = true
+	for c in over_rows.get_children():
+		c.queue_free()
+	var lv: Dictionary = LevelData.LEVELS[level_idx]
+	var sub := _dlabel("LEVEL %d · %s" % [level_idx + 1, str(lv_name).to_upper()], 15, INK_SOFT)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	over_rows.add_child(sub)
+	var title := _dlabel("Shift selesai!", 40)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	over_rows.add_child(title)
+	var srow := HBoxContainer.new()
+	srow.add_theme_constant_override("separation", 10)
+	srow.alignment = BoxContainer.ALIGNMENT_CENTER
+	over_rows.add_child(srow)
+	for i in range(3):
+		srow.add_child(_dlabel("★" if i < stars else "☆", 44, GOLD if i < stars else INK_SOFT))
+	var s3 := int(lv.get("star_3", 900))
+	var note := _dlabel("Sempurna! Semua bintang diraih.", 16, INK_SOFT)
+	if stars < 3:
+		note = _dlabel("Tinggal %d poin lagi untuk bintang 3" % maxi(0, s3 - score), 16, INK_SOFT)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	over_rows.add_child(note)
+	over_rows.add_child(HSeparator.new())
+	var L: Dictionary = ledger
+	over_rows.add_child(_over_row("Pesanan selesai", "%d dari %d" % [int(L.get("done", 0)), int(L.get("spawned", 0))], "+%d" % int(L.get("base", 0)), INK))
+	over_rows.add_child(_over_row("Bonus cepat", "%d pesanan di atas 66% sabar" % int(L.get("bonus_n", 0)), "+%d" % int(L.get("bonus", 0)), LEAF))
+	over_rows.add_child(_over_row("Tip", "", "+%d" % int(L.get("tip", 0)), LEAF))
+	over_rows.add_child(_over_row("Pelanggan ngamuk", "%d orang" % int(L.get("angry_n", 0)), "-%d" % int(L.get("angry", 0)), BLOOD))
+	over_rows.add_child(_over_row("Kebakaran", "%d kali · %d dtk" % [int(L.get("fire_n", 0)), int(L.get("fire_secs", 0))], "-%d" % int(L.get("fire", 0)), BLOOD))
+	over_rows.add_child(_over_row("Biaya rekrut bot", "%d bot" % int(L.get("recruit_n", 0)), "-%d" % int(L.get("recruit", 0)), BLOOD))
+	if int(L.get("fail_n", 0)) > 0:
+		over_rows.add_child(_over_row("Salah sajikan", "%d kali" % int(L.get("fail_n", 0)), "-%d" % int(L.get("fail", 0)), BLOOD))
+	over_rows.add_child(HSeparator.new())
+	var th := HBoxContainer.new()
+	over_rows.add_child(th)
+	var tleft := VBoxContainer.new()
+	tleft.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	th.add_child(tleft)
+	tleft.add_child(_dlabel("TOTAL SKOR", 16, INK_SOFT))
+	if rekor:
+		tleft.add_child(_dlabel("Rekor lama %d · rekor baru!" % old_best, 14, INK_SOFT))
+	else:
+		tleft.add_child(_dlabel("Rekor %d" % maxi(old_best, score), 14, INK_SOFT))
+	var tot := _dlabel(str(score), 56, Color(0.75, 0.35, 0.20))
+	th.add_child(tot)
+	var brow := HBoxContainer.new()
+	brow.add_theme_constant_override("separation", 12)
+	brow.alignment = BoxContainer.ALIGNMENT_CENTER
+	over_rows.add_child(brow)
+	var again := _btn("Main lagi")
+	again.custom_minimum_size = Vector2(200, 56)
+	again.add_theme_font_size_override("font_size", 22)
+	again.add_theme_stylebox_override("normal", _style_light(GOLD, INK))
+	again.add_theme_color_override("font_color", INK)
 	again.pressed.connect(func() -> void: game.restart_level())
-	v.add_child(again)
-	var tomenu := _btn("Menu Utama")
+	brow.add_child(again)
+	var nxt := level_idx + 1
+	if nxt < LevelData.LEVELS.size() and game.is_level_unlocked(nxt):
+		var nb := _btn("Level %d" % (nxt + 1))
+		nb.custom_minimum_size = Vector2(160, 56)
+		nb.add_theme_font_size_override("font_size", 22)
+		nb.pressed.connect(func() -> void: game.start_level(nxt))
+		brow.add_child(nb)
+	var tomenu := _btn("Menu")
+	tomenu.custom_minimum_size = Vector2(140, 56)
+	tomenu.add_theme_font_size_override("font_size", 22)
 	tomenu.pressed.connect(func() -> void: game.to_menu())
-	v.add_child(tomenu)
+	brow.add_child(tomenu)
 
 func _build_pause() -> void:
 	pause_panel = PanelContainer.new()
@@ -629,19 +700,6 @@ func show_pause(on: bool) -> void:
 
 func set_countdown(t: String) -> void:
 	count_label.text = t
-
-func show_over(score: int, stars: int, lv_name: String, rekor: bool) -> void:
-	hud_root.visible = false
-	pause_panel.visible = false
-	over_panel.visible = true
-	over_title.text = "WAKTU HABIS!"
-	var st := ""
-	for i in range(stars):
-		st += "* "
-	if st == "":
-		st = "-"
-	over_rekor.text = "REKOR BARU!" if rekor else ""
-	over_detail.text = "%s\nSkor: %d\nBintang: %s" % [lv_name, score, st]
 
 # ---------- update ----------
 

@@ -15,6 +15,9 @@ var time_left: float = 180.0
 var running: bool = false
 var rng := RandomNumberGenerator.new()
 var _next_uid := 1
+# denda aktual terakhir (eksak setelah clamp nol) + jenisnya, dibaca game buat ledger.
+var last_penalty := 0
+var last_penalty_kind := ""
 
 func start_level(p_level: Dictionary) -> void:
 	level = p_level
@@ -46,7 +49,10 @@ func _process(delta: float) -> void:
 			expired.append(o)
 	for o in expired:
 		active_orders.erase(o)
+		var before := score
 		score = maxi(0, score - 20)
+		last_penalty = before - score
+		last_penalty_kind = "angry"
 		emit_signal("score_changed", score)
 		emit_signal("order_expired", o)
 	emit_signal("orders_changed")
@@ -95,7 +101,10 @@ func deliver(plate: FoodItem) -> Dictionary:
 			got = i
 			break
 	if got == -1:
+		var before2 := score
 		score = maxi(0, score - 10)
+		last_penalty = before2 - score
+		last_penalty_kind = "fail"
 		emit_signal("score_changed", score)
 		return {"ok": false, "msg": "Tidak ada order cocok!", "reward": 0}
 	var r: Dictionary = active_orders[got]["recipe"]
@@ -104,13 +113,16 @@ func deliver(plate: FoodItem) -> Dictionary:
 	var done_order: Dictionary = active_orders[got]
 	active_orders.remove_at(got)
 	var reward := int(r.get("reward", 100))
+	var base := reward
+	var bonus := 0
 	# bonus cepat relatif terhadap patience order (bukan absolut 60 dtk)
 	if tleft > tmax * 0.66:
-		reward += 30
+		bonus = 30
+		reward += bonus
 	score += reward
 	emit_signal("score_changed", score)
 	emit_signal("orders_changed")
-	return {"ok": true, "msg": "Order OK! +" + str(reward), "reward": reward, "order": done_order, "time_left": tleft, "time_max": tmax}
+	return {"ok": true, "msg": "Order OK! +" + str(reward), "reward": reward, "base": base, "bonus": bonus, "order": done_order, "time_left": tleft, "time_max": tmax}
 
 func _match(recipe: Dictionary, contents: Array) -> bool:
 	return LevelData.match_recipe(recipe, contents)

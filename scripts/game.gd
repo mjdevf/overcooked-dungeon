@@ -459,6 +459,7 @@ func start_level(idx: int) -> void:
 	junk_timer.clear()
 	fire_sec = 0.0
 	orders.stop()
+	_ledger_reset()
 	orders.emit_signal("orders_changed")
 	# kamera snap ke pemain (follow mulai dari sini)
 	if cam and player:
@@ -564,20 +565,40 @@ func _on_orders_changed() -> void:
 		hud.refresh_orders(orders.active_orders)
 
 func _on_score_changed(_s: int) -> void:
-	pass
+	# konsumsi denda aktual dari order_manager (eksak, bukan nominal)
+	var amt := orders.last_penalty
+	var kind := str(orders.last_penalty_kind)
+	orders.last_penalty = 0
+	orders.last_penalty_kind = ""
+	if amt > 0 and kind == "angry":
+		ledger["angry_n"] = int(ledger.get("angry_n", 0)) + 1
+		ledger["angry"] = int(ledger.get("angry", 0)) + amt
+	elif amt > 0 and kind == "fail":
+		ledger["fail_n"] = int(ledger.get("fail_n", 0)) + 1
+		ledger["fail"] = int(ledger.get("fail", 0)) + amt
 
 func _on_game_over(score: int, stars: int) -> void:
 	playing = false
 	audio.fail()
+	var old_best := int(load_best(level_idx)[0])
 	var rekor := save_best(level_idx, score, stars)
-	hud.show_over(score, stars, str(level.get("name", "")), rekor)
+	hud.show_over(score, stars, str(level.get("name", "")), rekor, ledger, level_idx, old_best)
+
+# Rincian skor run ini. Kunci total = base+bonus+tip-angry-fire-recruit-fail.
+func _ledger_reset() -> void:
+	ledger = {"done": 0, "spawned": 0, "base": 0, "bonus_n": 0, "bonus": 0,
+		"tip_n": 0, "tip": 0, "angry_n": 0, "angry": 0, "fire_n": 0,
+		"fire_secs": 0, "fire": 0, "recruit_n": 0, "recruit": 0,
+		"fail_n": 0, "fail": 0}
 
 func _on_order_added(_order: Dictionary) -> void:
 	# Order lahir di kasir (NPC sudah antre duluan). Bunyikan saja.
+	ledger["spawned"] = int(ledger.get("spawned", 0)) + 1
 	audio.order_up()
 
 func _on_order_expired(order: Dictionary) -> void:
 	release_uid(int(order.get("uid", 0)))
+	# denda aktual dicatat di _on_score_changed (eksak setelah clamp nol)
 	var npc = order.get("npc", null)
 	if npc and is_instance_valid(npc):
 		npc.angry()
@@ -885,12 +906,19 @@ func _serve(plate: FoodItem, at_pos: Vector3, from_pos: Vector3) -> Dictionary:
 	if bool(res.get("ok", false)):
 		var done_order: Dictionary = res.get("order", {})
 		release_uid(int(done_order.get("uid", 0)))
+		ledger["done"] = int(ledger.get("done", 0)) + 1
+		ledger["base"] = int(ledger.get("base", 0)) + int(res.get("base", 0))
+		if int(res.get("bonus", 0)) > 0:
+			ledger["bonus_n"] = int(ledger.get("bonus_n", 0)) + 1
+			ledger["bonus"] = int(ledger.get("bonus", 0)) + int(res.get("bonus", 0))
 		hud.flash(str(res.get("msg", "OK")))
 		audio.success()
 		spawn_popup("+" + str(res.get("reward", 0)), at_pos, Color(1.0, 0.85, 0.3))
 		# tip cepat relatif terhadap patience order (bukan absolut 45 dtk)
 		if float(res.get("time_left", 0.0)) > float(res.get("time_max", 90.0)) * 0.5:
 			orders.score += 15
+			ledger["tip_n"] = int(ledger.get("tip_n", 0)) + 1
+			ledger["tip"] = int(ledger.get("tip", 0)) + 15
 			orders.emit_signal("score_changed", orders.score)
 			spawn_popup("+15 tip", at_pos + Vector3(0, 0.4, 0), Color(0.5, 1.0, 0.5))
 		var npc = done_order.get("npc", null)
@@ -937,6 +965,7 @@ func find_complete_plate_station() -> Station:
 # ---------- sinkronisasi order <-> bot (klaim + assembly) ----------
 
 var claims := {}  # uid(int) -> {"by": BotHelper, "plate": Station/nil}
+var ledger := {}  # rincian skor run ini (buat layar hasil)
 
 func claim_order(bot, uid: int) -> bool:
 	_prune_claims()
@@ -1443,6 +1472,8 @@ func recruit_bot() -> void:
 		audio.fail()
 		return
 	orders.score -= cost
+	ledger["recruit_n"] = int(ledger.get("recruit_n", 0)) + 1
+	ledger["recruit"] = int(ledger.get("recruit", 0)) + cost
 	var b := BotHelper.new()
 	b.process_mode = Node.PROCESS_MODE_PAUSABLE
 	b.game = self
@@ -1545,12 +1576,18 @@ func _process(delta: float) -> void:
 			if st.station_type == "stove" and st.fire:
 				if not st.fire_alarmed:
 					st.fire_alarmed = true
+					ledger["fire_n"] = int(ledger.get("fire_n", 0)) + 1
 					hud.flash("KEBAKARAN! Padamkan dengan APAR!")
 					audio.alarm()
 				fire_sec += delta
 				if fire_sec >= 1.0:
 					fire_sec = 0.0
+					var before_f := orders.score
 					orders.score = maxi(0, orders.score - 2)
+					var dropped := before_f - orders.score
+					if dropped > 0:
+						ledger["fire_secs"] = int(ledger.get("fire_secs", 0)) + 1
+						ledger["fire"] = int(ledger.get("fire", 0)) + dropped
 					orders.emit_signal("score_changed", orders.score)
 		_update_flying(delta)
 		_update_eating(delta)
