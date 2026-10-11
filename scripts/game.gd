@@ -64,6 +64,20 @@ func _ready() -> void:
 	# backdrop menu: load level 1 visual tapi belum main
 	load_level_visual(0)
 	hud.show_menu()
+	_hide_world_labels()
+
+# Di menu, label melayang dunia (station, bot, NPC) tidak boleh tembus ke UI.
+# Saat main, label station diatur lagi per jarak pemain (lihat _process).
+func _hide_world_labels() -> void:
+	for s in stations:
+		if is_instance_valid(s) and s.label3d and is_instance_valid(s.label3d):
+			s.label3d.visible = false
+	for b in bots:
+		if is_instance_valid(b) and b.job_label and is_instance_valid(b.job_label):
+			b.job_label.visible = false
+	for n in npcs:
+		if is_instance_valid(n) and n.bubble and is_instance_valid(n.bubble):
+			n.bubble.visible = false
 
 func is_playing() -> bool:
 	return playing and not paused
@@ -483,6 +497,7 @@ func to_menu() -> void:
 	load_level_visual(0)
 	in_menu = true
 	hud.show_menu()
+	_hide_world_labels()
 
 func toggle_pause() -> void:
 	if countdown > 0.0 or not playing:

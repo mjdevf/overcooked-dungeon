@@ -70,7 +70,7 @@ func _process(_delta: float) -> bool:
 		check("Lanjut Level 2" in h.continue_btn.text, "tombol lanjut level 2")
 		var c0 := _texts(h.level_cards.get_child(0))
 		var c2 := _texts(h.level_cards.get_child(2))
-		check("Selesai" in c0 and "Terbaik 812" in c0, "kartu L1 selesai + rekor")
+		check("Main lagi" in c0 and "Terbaik 812" in c0, "kartu L1 main lagi + rekor")
 		check("Terkunci" in c2 and "Level 2" in c2, "kartu L3 terkunci + syarat")
 		check("Ruang Rame" in _texts(h.level_cards.get_child(1)), "kartu L2 ada")
 		# klik L3 terkunci -> tetap di menu
