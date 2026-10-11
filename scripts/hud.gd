@@ -14,7 +14,12 @@ const GOLD := Color(0.85, 0.60, 0.10)
 
 var game = null
 var menu_panel: PanelContainer
-var menu_best_labels: Array = []
+var level_cards: VBoxContainer
+var continue_btn: Button
+var help_overlay: PanelContainer
+var settings_overlay: PanelContainer
+var mute_btn: Button
+var muted := false
 var hud_root: Control
 var orders_box: VBoxContainer
 var info_label: Label
@@ -148,58 +153,210 @@ func _btn(t: String) -> Button:
 	b.add_theme_font_size_override("font_size", 20)
 	return b
 
-# ---------- menu ----------
+# ---------- menu (ala mockup) ----------
 
 func _build_menu() -> void:
 	menu_panel = PanelContainer.new()
 	menu_panel.add_theme_stylebox_override("panel", _style(PANEL, 18))
 	menu_panel.set_anchors_preset(Control.PRESET_CENTER)
-	menu_panel.position = Vector2(-230, -260)
-	menu_panel.custom_minimum_size = Vector2(460, 520)
+	menu_panel.position = Vector2(-540, -330)
+	menu_panel.custom_minimum_size = Vector2(1080, 660)
 	add_child(menu_panel)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 10)
-	menu_panel.add_child(v)
-	var title := _title_label("OVERCOOKED DUNGEON", 36)
-	v.add_child(title)
-	var sub := _title_label("Gudang - Dapur - Pesanan: layani NPC sebelum kabur!", 15)
-	sub.add_theme_color_override("font_color", ACCENT)
-	v.add_child(sub)
-	v.add_child(_title_label("Pilih Level:", 20))
-	for i in range(3):
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 8)
-		row.alignment = BoxContainer.ALIGNMENT_CENTER
-		v.add_child(row)
-		var b := _btn(LevelData.LEVELS[i]["name"])
-		b.custom_minimum_size = Vector2(280, 44)
-		var idx := i
-		b.pressed.connect(func() -> void: game.start_level(idx))
-		row.add_child(b)
-		var best := _title_label("", 14)
-		best.custom_minimum_size = Vector2(120, 44)
-		best.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		best.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		best.add_theme_color_override("font_color", ACCENT)
-		row.add_child(best)
-		menu_best_labels.append(best)
-	var help := _title_label("Keyboard: WASD gerak, Shift dash, E/Spasi ambil/taruh (tahan: cincang/cuci), Q rekrut bot auto, Esc pause | Gamepad: stick/D-pad gerak, A ambil/taruh (tahan: cincang), B dash, Y bot, Start pause", 13)
-	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	help.custom_minimum_size = Vector2(420, 56)
-	help.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
-	v.add_child(help)
+	var cols := HBoxContainer.new()
+	cols.add_theme_constant_override("separation", 30)
+	menu_panel.add_child(cols)
+	# kiri: judul + tombol
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 10)
+	left.custom_minimum_size = Vector2(430, 0)
+	cols.add_child(left)
+	left.add_child(_pill("Co-op masak · 1 pemain + 2 bot", INK, Color(1, 1, 1), 14))
+	var title := _title_label("Overcooked", 64)
+	title.add_theme_color_override("font_color", Color(0.80, 0.35, 0.20))
+	left.add_child(title)
+	var title2 := _title_label("Dungeon", 64)
+	left.add_child(title2)
+	var desc := _dlabel("Layani pelanggan sebelum sabar mereka habis. Rekrut bot buat bantu, tapi jaga kompor biar tidak kebakaran.", 16, Color(0.85, 0.85, 0.9))
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.custom_minimum_size = Vector2(420, 90)
+	left.add_child(desc)
+	continue_btn = _btn("» Lanjut Level 1")
+	continue_btn.custom_minimum_size = Vector2(420, 56)
+	continue_btn.add_theme_font_size_override("font_size", 24)
+	continue_btn.pressed.connect(func() -> void: game.continue_level())
+	left.add_child(continue_btn)
+	var help_b := _btn("Cara main")
+	help_b.custom_minimum_size = Vector2(420, 48)
+	help_b.pressed.connect(func() -> void: toggle_help())
+	left.add_child(help_b)
+	var set_b := _btn("Pengaturan")
+	set_b.custom_minimum_size = Vector2(420, 48)
+	set_b.pressed.connect(func() -> void: toggle_settings())
+	left.add_child(set_b)
+	var quit_b := _btn("Keluar")
+	quit_b.custom_minimum_size = Vector2(420, 48)
+	quit_b.pressed.connect(func() -> void: get_tree().quit())
+	left.add_child(quit_b)
+	var hints := _dlabel("WASD gerak · Shift lari · E ambil/taruh/tahan cincang · Q rekrut bot · Esc jeda · F1 bantuan", 13, Color(0.7, 0.7, 0.8))
+	hints.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hints.custom_minimum_size = Vector2(420, 44)
+	left.add_child(hints)
+	# kanan: pilih level
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 10)
+	right.custom_minimum_size = Vector2(560, 0)
+	cols.add_child(right)
+	var rhead := HBoxContainer.new()
+	right.add_child(rhead)
+	var pl := _title_label("PILIH LEVEL", 18)
+	pl.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	pl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rhead.add_child(pl)
+	var sv := _title_label("Tersimpan otomatis", 13)
+	sv.add_theme_color_override("font_color", Color(0.7, 0.7, 0.8))
+	rhead.add_child(sv)
+	level_cards = VBoxContainer.new()
+	level_cards.add_theme_constant_override("separation", 12)
+	right.add_child(level_cards)
+	_build_help_overlay()
+	_build_settings_overlay()
+	_apply_mute(_load_muted())
 	refresh_menu_best()
 
+func _level_short(idx: int) -> String:
+	return "Lanjut Level %d" % (idx + 1)
+
 func refresh_menu_best() -> void:
-	for i in range(menu_best_labels.size()):
-		var b: Array = game.load_best(i)
-		var txt := "-"
-		if int(b[0]) > 0:
-			txt = "%d (" % int(b[0])
-			for s in range(int(b[1])):
-				txt += "*"
-			txt += ")"
-		(menu_best_labels[i] as Label).text = txt
+	# bangun ulang kartu level (bintang/rekor/status terbaru)
+	for c in level_cards.get_children():
+		c.queue_free()
+	var bests: Array = []
+	for i in range(LevelData.LEVELS.size()):
+		bests.append(game.load_best(i))
+	var cont: int = GameMain.continue_for(bests)
+	continue_btn.text = "» " + _level_short(cont)
+	for i in range(LevelData.LEVELS.size()):
+		level_cards.add_child(_level_card(i, bests, cont))
+
+func _level_card(idx: int, bests: Array, cont: int) -> PanelContainer:
+	var lv: Dictionary = LevelData.LEVELS[idx]
+	var stars := int(bests[idx][1])
+	var best := int(bests[idx][0])
+	var prev := 0 if idx == 0 else int(bests[idx - 1][1])
+	var unlocked: bool = GameMain.unlocked_for(prev, idx)
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", _style_light(CREAM, INK))
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 14)
+	card.add_child(h)
+	var badge := _pill(str(idx + 1), INK if unlocked else Color(0.6, 0.6, 0.62), Color(1, 1, 1), 24)
+	h.add_child(badge)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(v)
+	v.add_child(_dlabel(str(lv.get("name", "?")), 22))
+	v.add_child(_dlabel(game.level_desc(idx), 14, INK_SOFT))
+	var srow := HBoxContainer.new()
+	srow.add_theme_constant_override("separation", 4)
+	v.add_child(srow)
+	for s in range(3):
+		srow.add_child(_dlabel("★" if s < stars else "☆", 18, GOLD if s < stars else INK_SOFT))
+	var tbest := _dlabel("Terbaik %d" % best, 14, INK_SOFT)
+	srow.add_child(tbest)
+	var side := VBoxContainer.new()
+	side.add_theme_constant_override("separation", 4)
+	h.add_child(side)
+	if not unlocked:
+		var lock := Button.new()
+		lock.text = "Terkunci"
+		lock.disabled = true
+		lock.custom_minimum_size = Vector2(130, 36)
+		side.add_child(lock)
+		var hint := _dlabel("Butuh 1 bintang di Level %d" % idx, 12, INK_SOFT)
+		side.add_child(hint)
+		return card
+	var go := Button.new()
+	if stars >= 3:
+		go.text = "Selesai"
+	elif idx == cont:
+		go.text = "Main ini"
+	else:
+		go.text = "Mainkan"
+	go.custom_minimum_size = Vector2(130, 44)
+	go.add_theme_font_size_override("font_size", 16)
+	var li := idx
+	go.pressed.connect(func() -> void: game.start_level(li))
+	side.add_child(go)
+	return card
+
+func _build_help_overlay() -> void:
+	help_overlay = PanelContainer.new()
+	help_overlay.add_theme_stylebox_override("panel", _style_light(CREAM, INK))
+	help_overlay.set_anchors_preset(Control.PRESET_CENTER)
+	help_overlay.position = Vector2(-260, -220)
+	help_overlay.custom_minimum_size = Vector2(520, 440)
+	help_overlay.visible = false
+	add_child(help_overlay)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	help_overlay.add_child(v)
+	v.add_child(_dlabel("Cara main", 26))
+	var t := _dlabel("WASD / stick: gerak · Shift / B: lari\nE / Spasi / A: ambil, taruh, sajikan (TAHAN: cincang, cuci, padamkan)\nQ / Y: rekrut bot (50/150 poin, maks 2) · Esc / Start: jeda · F1: bantuan\n\nAlur: peti > talenan > kompor > plating > ANTAR. Gosong dibiarkan jadi api — ambil APAR merah di samping kompor! Order merah = sabar menipis, cepat hangus (-20).", 15)
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	t.custom_minimum_size = Vector2(480, 260)
+	v.add_child(t)
+	var close := _btn("Tutup")
+	close.custom_minimum_size = Vector2(200, 44)
+	close.pressed.connect(func() -> void: toggle_help())
+	v.add_child(close)
+
+func toggle_help() -> void:
+	help_overlay.visible = not help_overlay.visible
+	settings_overlay.visible = false
+
+func _build_settings_overlay() -> void:
+	settings_overlay = PanelContainer.new()
+	settings_overlay.add_theme_stylebox_override("panel", _style_light(CREAM, INK))
+	settings_overlay.set_anchors_preset(Control.PRESET_CENTER)
+	settings_overlay.position = Vector2(-230, -170)
+	settings_overlay.custom_minimum_size = Vector2(460, 340)
+	settings_overlay.visible = false
+	add_child(settings_overlay)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	settings_overlay.add_child(v)
+	v.add_child(_dlabel("Pengaturan", 26))
+	mute_btn = _btn("Suara: Nyala")
+	mute_btn.custom_minimum_size = Vector2(300, 48)
+	mute_btn.pressed.connect(func() -> void: _apply_mute(not muted))
+	v.add_child(mute_btn)
+	var t := _dlabel("Kontrol keyboard: WASD + Shift + E + Q + Esc + F1.\nGamepad: stick/D-pad + A + B + Y + Start.\nTerakhir dipakai: tombol prompt menyesuaikan otomatis.", 14)
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	t.custom_minimum_size = Vector2(420, 120)
+	v.add_child(t)
+	var close := _btn("Tutup")
+	close.custom_minimum_size = Vector2(200, 44)
+	close.pressed.connect(func() -> void: toggle_settings())
+	v.add_child(close)
+
+func toggle_settings() -> void:
+	settings_overlay.visible = not settings_overlay.visible
+	help_overlay.visible = false
+
+func _load_muted() -> bool:
+	var cfg := ConfigFile.new()
+	cfg.load(GameMain.SAVE_PATH)
+	return bool(cfg.get_value("settings", "muted", false))
+
+func _apply_mute(m: bool) -> void:
+	muted = m
+	AudioServer.set_bus_mute(0, m)
+	var cfg := ConfigFile.new()
+	cfg.load(GameMain.SAVE_PATH)
+	cfg.set_value("settings", "muted", m)
+	cfg.save(GameMain.SAVE_PATH)
+	mute_btn.text = "Suara: Mati" if m else "Suara: Nyala"
 
 # ---------- HUD main (ala mockup) ----------
 
@@ -443,6 +600,8 @@ func _build_pause() -> void:
 func show_menu() -> void:
 	refresh_menu_best()
 	menu_panel.visible = true
+	help_overlay.visible = false
+	settings_overlay.visible = false
 	hud_root.visible = false
 	over_panel.visible = false
 	pause_panel.visible = false

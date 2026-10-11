@@ -506,6 +506,59 @@ func load_best(idx: int) -> Array:
 	cfg.load(SAVE_PATH)
 	return [int(cfg.get_value("best", "best_score_%d" % idx, 0)), int(cfg.get_value("best", "best_stars_%d" % idx, 0))]
 
+# Level terbuka? L1 selalu; lainnya butuh ≥1 bintang di level sebelumnya.
+static func unlocked_for(prev_stars: int, idx: int) -> bool:
+	return idx == 0 or prev_stars >= 1
+
+func is_level_unlocked(idx: int) -> bool:
+	if idx == 0:
+		return true
+	return int(load_best(idx - 1)[1]) >= 1
+
+# Lanjut ke level terbuka tertinggi yg belum 3 bintang (buat tombol menu).
+static func continue_for(bests: Array) -> int:
+	var cont := 0
+	for i in range(bests.size()):
+		if i > 0 and int(bests[i - 1][1]) < 1:
+			break
+		cont = i
+		if int(bests[i][1]) < 3:
+			break
+	return cont
+
+func continue_idx() -> int:
+	var bests: Array = []
+	for i in range(LevelData.LEVELS.size()):
+		bests.append(load_best(i))
+	return continue_for(bests)
+
+func continue_level() -> void:
+	start_level(continue_idx())
+
+# Deskripsi kartu level: "Salad, Roti Lapis · 2 rush hour · 3:30".
+func level_desc(idx: int) -> String:
+	var lv: Dictionary = LevelData.LEVELS[idx]
+	var shorts: Array = []
+	for rid in lv.get("recipes", []):
+		shorts.append(str(LevelData.get_recipe(str(rid)).get("label", rid)).replace(" Dungeon", ""))
+	var pace := "NPC pelan"
+	if float(lv.get("spawn_base", 22.0)) < 16.0:
+		pace = "NPC cepat"
+	elif float(lv.get("spawn_base", 22.0)) < 20.0:
+		pace = "NPC sedang"
+	var rush := 0
+	for ev in lv.get("events", []):
+		if str(ev.get("kind", "")) == "rush":
+			rush += 1
+	var t := int(float(lv.get("time", 180.0)))
+	var parts := [", ".join(PackedStringArray(shorts))]
+	if rush > 0:
+		parts.append("%d rush hour" % rush)
+	else:
+		parts.append(pace)
+	parts.append("%d:%02d" % [t / 60, t % 60])
+	return " · ".join(PackedStringArray(parts))
+
 func _on_orders_changed() -> void:
 	if hud:
 		hud.refresh_orders(orders.active_orders)
@@ -819,6 +872,11 @@ func _input(event: InputEvent) -> void:
 		hud.set_prompt_key("[A]")
 	elif event is InputEventKey and event.pressed:
 		hud.set_prompt_key("[E]")
+		if in_menu and not event.is_echo():
+			if event.keycode == KEY_F1:
+				hud.toggle_help()
+			elif event.keycode == KEY_E:
+				continue_level()
 
 # Sajikan piring (plate sudah dilepas dari tangan caller, from_pos = posisi tangan).
 # Ok: piring TERBANG ke meja NPC (pelayan), skor + tip. Gagal: caller pegang lagi.
