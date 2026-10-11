@@ -928,6 +928,57 @@ func order_assignee(uid: int) -> String:
 		return "Bot"
 	return ""
 
+# Nomor bot (1-based) yg klaim order ini, 0 kalau tak ada. Buat badge kartu order.
+func order_bot_idx(uid: int) -> int:
+	_prune_claims()
+	if claims.has(uid):
+		var holder = claims[uid].get("by", null)
+		if holder != null and is_instance_valid(holder):
+			return bots.find(holder) + 1
+	return 0
+
+# Status tiap need: true kalau sudah terpenuhi di piring reserve order ini.
+# Buat centang chip bahan di kartu order.
+func order_progress(order: Dictionary) -> Array:
+	var out: Array = []
+	var needs: Array = order.get("recipe", {}).get("needs", [])
+	var contents: Array = []
+	var uid := int(order.get("uid", 0))
+	_prune_claims()
+	if claims.has(uid):
+		var pst = claims[uid].get("plate", null)
+		if pst != null and is_instance_valid(pst) and pst.stored and pst.stored.is_plate and not pst.stored.dirty:
+			contents = pst.stored.plate_contents
+	for n in needs:
+		var hit := false
+		for c in contents:
+			if LevelData.need_met(n, c):
+				hit = true
+				break
+		out.append(hit)
+	return out
+
+# Kursi terisi / total. Buat header "N dari M kursi".
+func seats_info() -> Array:
+	var taken := 0
+	for s in seats:
+		if bool(s.get("taken", false)):
+			taken += 1
+	return [taken, seats.size()]
+
+# Nomor kompor aktif (1-based, urut x) buat banner kebakaran.
+func stove_index(st: Station) -> int:
+	var act: Array = []
+	for s in stations:
+		if s.station_type == "stove" and s.enabled:
+			act.append(s)
+	act.sort_custom(func(a: Station, b: Station) -> bool: return a.global_position.x < b.global_position.x)
+	return act.find(st) + 1
+
+# Biaya rekrut bot berikutnya (50/150 bertingkat).
+func recruit_cost() -> int:
+	return BOT_COST if bots.is_empty() else BOT_COST_2
+
 func matching_order(contents: Array) -> Dictionary:
 	for o in orders.active_orders:
 		if LevelData.match_recipe(o["recipe"], contents):
@@ -1467,6 +1518,10 @@ func _process(delta: float) -> void:
 			if st.stored:
 				info += " (" + st.stored.describe() + ")"
 		hud.set_info(info)
+		if player and player.carry:
+			hud.set_carry(player.carry.describe())
+		else:
+			hud.set_carry("Kosong")
 		hud.set_prompt(_prompt_for(st))
 		for s in stations:
 			if is_instance_valid(s):
